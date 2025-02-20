@@ -56,7 +56,7 @@ function MapPage() {
               type: 'raster',
               source: 'roads-wms',
               paint: {
-                'raster-opacity': 0.8
+                'raster-opacity': 1
               }
             },
             {
@@ -64,7 +64,7 @@ function MapPage() {
               type: 'raster',
               source: 'dsb-wms',
               paint: {
-                'raster-opacity': 0.7
+                'raster-opacity': 1
               }
             }
           ]
