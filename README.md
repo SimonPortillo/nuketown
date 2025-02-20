@@ -17,7 +17,7 @@ Følg disse trinnene for å kjøre prosjektet lokalt. Du må ha [Node.js](https:
 
 1. **Klone prosjektet**:
    ```ruby
-   git clone https://github.com/your-username/nuketown.git
+   git clone https://github.com/SimonPortillo/nuketown.git
 1. **Last ned avhengigheter**:
    ```ruby
    npm install
