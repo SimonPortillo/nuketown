@@ -12,3 +12,13 @@ body {
   min-height: 100vh;
 }
 
+::selection {
+  background-color: rgba(255, 196, 0, 0.3);
+  color: inherit;
+}
+
+::-moz-selection {
+  background-color: rgba(255, 196, 0, 0.3);
+  color: inherit;
+}
+
