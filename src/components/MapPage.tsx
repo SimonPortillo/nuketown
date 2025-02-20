@@ -22,7 +22,7 @@ function MapPage() {
           sources: {
             'openstreetmap': {
               type: 'raster',
-              tiles: ['https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png'],
+              tiles: ['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'],
               tileSize: 256,
               attribution: '&copy; openstreetmap'
             },
