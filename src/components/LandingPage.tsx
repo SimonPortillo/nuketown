@@ -3,7 +3,6 @@
 import React, { useEffect, useState, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import {
-  AppBar,
   Box,
   Button,
   Container,
@@ -12,7 +11,6 @@ import {
   Grid,
   LinearProgress,
   Alert,
-  Toolbar,
   Card,
   CardContent,
   List,
@@ -22,7 +20,6 @@ import {
   Fade,
 } from "@mui/material"
 import { useInView } from "react-intersection-observer"
-import WarningIcon from "@mui/icons-material/Warning"
 import LocationOnIcon from "@mui/icons-material/LocationOn"
 import SecurityIcon from "@mui/icons-material/Security"
 import SpeedIcon from "@mui/icons-material/Speed"
@@ -46,7 +43,7 @@ const FadeInSection: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   )
 }
 
-const PulseButton = styled(Button)(({ theme }) => ({
+const PulseButton = styled(Button)(({}) => ({
   '@keyframes pulse': {
     '0%': {
       boxShadow: '0 0 0 0 rgba(255, 196, 0, 0.4)',
