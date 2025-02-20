@@ -25,5 +25,6 @@ Følg disse trinnene for å kjøre prosjektet lokalt. Du må ha [Node.js](https:
 ---
 # Forhåndsvisning
 ![image](https://github.com/user-attachments/assets/cb52b96c-6f81-4dca-a00f-b8f64d29d845)
-![image](https://github.com/user-attachments/assets/e890aeb0-29c6-4d40-ac1c-7ceab97b7c61)
+![image](https://github.com/user-attachments/assets/ee04f401-9363-4a23-9cc1-38354de79804)
+
 
