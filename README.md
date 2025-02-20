@@ -9,6 +9,8 @@ Dette prosjektet er bygget med følgende teknologi:
 - **Material-UI**: Et React-komponentbibliotek for rask og enkel opprettelse av stilige brukergrensesnitt.
 - **React Router**: Et bibliotek for å håndtere navigasjon i React-applikasjoner.
 
+# Live Demo 
+[demo](https://nuketown-one.vercel.app)
 ## Hvordan kjøre prosjektet
 
 Følg disse trinnene for å kjøre prosjektet lokalt. Du må ha [Node.js](https://nodejs.org/en) installert på din maskin.
