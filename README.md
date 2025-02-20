@@ -1,6 +1,6 @@
-# NukeTown Shelter Finder
+# NukeTown Tilfluktsromfinner
 
-NukeTown Shelter Finder er en React-applikasjon designet for å hjelpe brukere med å finne nærmeste nødhusly i tilfelle en atomnødsituasjon. Appen bruker din GPS-posisjon for raskt å veilede deg til sikkerhet.
+NukeTown Tilfluktsromfinner er en React-applikasjon designet for å hjelpe brukere med å finne nærmeste nødhusly i tilfelle en atomnødsituasjon. Appen bruker din GPS-posisjon for raskt å veilede deg til sikkerhet.
 
 ## Teknologi
 
@@ -22,5 +22,9 @@ Følg disse trinnene for å kjøre prosjektet lokalt. Du må ha [Node.js](https:
 1. **Kjør lokalt**:
    ```ruby
    npm run dev
-![image](https://github.com/user-attachments/assets/56a2a490-e95f-4083-96a8-89d871a87e75)
-![image](https://github.com/user-attachments/assets/efff72c2-895c-48a4-ad78-751f17606788)
+---
+# Forhåndsvisning
+![image](https://github.com/user-attachments/assets/cb52b96c-6f81-4dca-a00f-b8f64d29d845)
+![image](https://github.com/user-attachments/assets/ee04f401-9363-4a23-9cc1-38354de79804)
+
+
