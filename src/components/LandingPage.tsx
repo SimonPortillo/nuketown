@@ -227,7 +227,8 @@ const LandingPage: React.FC = () => {
         <FadeInSection>
           <Box ref={firstSectionRef} sx={{ my: 8 }}>
             <Typography variant="h2" align="center" color="primary" gutterBottom>
-              Hvorfor velge NukeTown Tilfluktsromfinner?
+                  {' '}
+                  <Box component="span">Hvorfor velge <Box component="span" sx={{ color: '#ffc400' }}>NukeTown</Box> Tilfluktsromfinner?</Box>
             </Typography>
             <Grid container spacing={4} sx={{ mt: 2 }}>
               <Grid item xs={12} md={4}>
