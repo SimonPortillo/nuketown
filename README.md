@@ -1,6 +1,6 @@
-# NukeTown Shelter Finder
+# NukeTown Tilfluktsromfinner
 
-NukeTown Shelter Finder er en React-applikasjon designet for å hjelpe brukere med å finne nærmeste nødhusly i tilfelle en atomnødsituasjon. Appen bruker din GPS-posisjon for raskt å veilede deg til sikkerhet.
+NukeTown Tilfluktsromfinner er en React-applikasjon designet for å hjelpe brukere med å finne nærmeste nødhusly i tilfelle en atomnødsituasjon. Appen bruker din GPS-posisjon for raskt å veilede deg til sikkerhet.
 
 ## Teknologi
 
