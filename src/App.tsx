@@ -1,8 +1,8 @@
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom"
-import CssBaseline from "@mui/material/CssBaseline"
-import { ThemeProvider, createTheme } from "@mui/material/styles"
-import LandingPage from "./components/LandingPage"
-import MapPage from "./components/MapPage"
+import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import CssBaseline from "@mui/material/CssBaseline";
+import { ThemeProvider, createTheme } from "@mui/material/styles";
+import LandingPage from "./components/LandingPage";
+import MapPage from "./components/MapPage";
 
 const theme = createTheme({
   palette: {
@@ -65,7 +65,7 @@ const theme = createTheme({
       },
     },
   },
-})
+});
 
 function App() {
   return (
@@ -78,7 +78,7 @@ function App() {
         </Routes>
       </Router>
     </ThemeProvider>
-  )
+  );
 }
 
-export default App
+export default App;
