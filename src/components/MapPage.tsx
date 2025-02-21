@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef } from "react";
+// MapPage.tsx
+import { useEffect, useState, useRef, useCallback } from "react";
 import {
   Map,
   NavigationControl,
@@ -7,6 +8,7 @@ import {
   Popup,
   ScaleControl,
 } from "react-map-gl/maplibre";
+import { LngLatBounds } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { createClient } from "@supabase/supabase-js";
 import proj4 from "proj4";
@@ -14,9 +16,13 @@ import type { MapGeoJSONFeature } from "maplibre-gl";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { faRadiation } from "@fortawesome/free-solid-svg-icons";
 import { library } from "@fortawesome/fontawesome-svg-core";
+import { Card, Typography, Box } from "@mui/material";
+import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
+import MyLocationIcon from "@mui/icons-material/MyLocation";
 
 const supabaseUrl = import.meta.env.VITE_REACT_APP_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_REACT_APP_SUPABASE_KEY;
+const MapBoxToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
 if (!supabaseUrl || !supabaseKey) {
   throw new Error("Missing Supabase environment variables");
@@ -53,7 +59,6 @@ const fetchGeoJSONData = async () => {
     return null;
   }
 
-  // Add random offset to each point for pulsing animation
   const geoJSON = {
     type: "FeatureCollection",
     features: (data as ShelterData[]).map((item) => ({
@@ -92,6 +97,13 @@ function MapPage() {
   const geolocateRef = useRef<maplibregl.GeolocateControl | undefined>(
     undefined
   );
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(
+    null
+  );
+  const [routeData, setRouteData] = useState<any>(null);
+  const [distanceToShelter, setDistanceToShelter] = useState<number | null>(
+    null
+  );
 
   // Fetch data effect
   useEffect(() => {
@@ -102,12 +114,208 @@ function MapPage() {
     getData();
   }, []);
 
+  // Function to calculate distance between two coordinates (Haversine formula)
+  const calculateDistance = (
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number
+  ): number => {
+    const R = 6371; // Radius of the Earth in kilometers
+    const toRadians = (angle: number) => (angle * Math.PI) / 180;
+    const dLat = toRadians(lat2 - lat1);
+    const dLon = toRadians(lon1 - lon2);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRadians(lat1)) *
+        Math.cos(toRadians(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c;
+    return distance;
+  };
+
+  // Function to find the closest shelter
+  const findClosestShelter = (
+    userLat: number,
+    userLon: number,
+    shelters: any
+  ) => {
+    if (!shelters?.features) return null;
+
+    let closestShelter: any = null;
+    let minDistance = Infinity;
+
+    shelters.features.forEach((shelter: any) => {
+      const shelterCoords = shelter.geometry.coordinates;
+      const distance = calculateDistance(
+        userLat,
+        userLon,
+        shelterCoords[1],
+        shelterCoords[0]
+      );
+
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestShelter = shelter;
+      }
+    });
+
+    return closestShelter;
+  };
+
+  // Function to fetch route data from MapBox API
+  const getRoute = useCallback(
+    async (
+      startLon: number,
+      startLat: number,
+      endLon: number,
+      endLat: number
+    ) => {
+      const url = `https://api.mapbox.com/directions/v5/mapbox/walking/${startLon},${startLat};${endLon},${endLat}?steps=true&geometries=geojson&access_token=${MapBoxToken}`;
+
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+        if (data.routes && data.routes.length > 0) {
+          setRouteData(data.routes[0].geometry);
+        }
+      } catch (error) {
+        console.error("Error fetching route:", error);
+      }
+    },
+    []
+  );
+
+  // Use effect to handle user location changes
+  useEffect(() => {
+    if (geolocateRef.current) {
+      geolocateRef.current.on("geolocate", (event) => {
+        const { latitude, longitude } = event.coords;
+        setUserLocation([longitude, latitude]);
+      });
+    }
+  }, [mapLoaded]);
+
+  // Use effect to find closest shelter and get route
+  useEffect(() => {
+    const map = mapRef.current;
+    if (userLocation && geoJSONData && map) {
+      // Find the closest shelter
+      const closestShelter = findClosestShelter(
+        userLocation[1],
+        userLocation[0],
+        geoJSONData
+      );
+
+      if (closestShelter) {
+        const coords = closestShelter.geometry.coordinates;
+
+        // Calculate the distance to the closest shelter
+        const distance = calculateDistance(
+          userLocation[1],
+          userLocation[0],
+          coords[1],
+          coords[0]
+        );
+        setDistanceToShelter(distance);
+
+        // Set the selected point
+        setSelectedPoint({
+          longitude: coords[0],
+          latitude: coords[1],
+          address: closestShelter.properties.address,
+          capacity: closestShelter.properties.capacity,
+        });
+
+        // Get the route
+        getRoute(userLocation[0], userLocation[1], coords[0], coords[1]);
+
+        // Fit bounds to show both points
+        const bounds = new LngLatBounds().extend(userLocation).extend(coords);
+
+        map.fitBounds(bounds, {
+          padding: { top: 150, bottom: 150, left: 150, right: 150 },
+          duration: 1000,
+        });
+      } else {
+        setDistanceToShelter(null);
+      }
+    }
+  }, [userLocation, geoJSONData, mapRef]);
+
   // Map setup effect
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !geoJSONData || !mapLoaded) return;
 
     try {
+      // Remove existing click handlers to prevent duplicates
+      map.off("click", "geojson-layer-symbols", () => {});
+
+      // Setup click handler
+      const handleClick = (e: { features?: MapGeoJSONFeature[] }) => {
+        console.log("Click detected", e.features?.[0]);
+
+        if (!e.features?.[0]) {
+          console.log("No feature found");
+          return;
+        }
+
+        const feature = e.features[0];
+        const coords = (
+          feature.geometry as {
+            type: "Point";
+            coordinates: [number, number];
+          }
+        ).coordinates;
+
+        console.log("Setting selected point:", {
+          coords,
+          properties: feature.properties,
+        });
+
+        // Set selected point
+        setSelectedPoint({
+          longitude: coords[0],
+          latitude: coords[1],
+          address: feature.properties?.address as string,
+          capacity: feature.properties?.capacity as number,
+        });
+
+        // Handle route and distance if we have user location
+        if (userLocation) {
+          console.log("User location available, calculating route");
+
+          const distance = calculateDistance(
+            userLocation[1],
+            userLocation[0],
+            coords[1],
+            coords[0]
+          );
+
+          console.log("Distance calculated:", distance);
+          setDistanceToShelter(distance);
+
+          // Get route
+          getRoute(userLocation[0], userLocation[1], coords[0], coords[1]);
+
+          // Fit bounds to show both points
+          const bounds = new LngLatBounds().extend(userLocation).extend(coords);
+
+          map.fitBounds(bounds, {
+            padding: { top: 150, bottom: 150, left: 150, right: 150 },
+            duration: 1000,
+          });
+        } else {
+          console.log("No user location available");
+        }
+      };
+
+      // Add click handler
+      map.on("click", "geojson-layer-symbols", handleClick);
+
       // Create and load the icon properly
       const img = new Image();
       img.onload = () => {
@@ -155,29 +363,6 @@ function MapPage() {
           });
         }
 
-        // Add event listeners after layer is created
-        map.on(
-          "click",
-          "geojson-layer-symbols",
-          (e: { features?: MapGeoJSONFeature[] }) => {
-            if (e.features?.[0]) {
-              const feature = e.features[0];
-              const coords = (
-                feature.geometry as {
-                  type: "Point";
-                  coordinates: [number, number];
-                }
-              ).coordinates;
-              setSelectedPoint({
-                longitude: coords[0],
-                latitude: coords[1],
-                address: feature.properties?.address as string,
-                capacity: feature.properties?.capacity as number,
-              });
-            }
-          }
-        );
-
         map.on("mouseenter", "geojson-layer-symbols", () => {
           map.getCanvas().style.cursor = "pointer";
         });
@@ -195,10 +380,15 @@ function MapPage() {
       `;
       const blob = new Blob([svgString], { type: "image/svg+xml" });
       img.src = URL.createObjectURL(blob);
+
+      return () => {
+        // Cleanup
+        map.off("click", "geojson-layer-symbols", handleClick);
+      };
     } catch (error) {
       console.error("Error setting up map:", error);
     }
-  }, [geoJSONData, mapLoaded]);
+  }, [geoJSONData, mapLoaded, userLocation, getRoute, calculateDistance]);
 
   // Add effect to trigger geolocation
   useEffect(() => {
@@ -209,6 +399,44 @@ function MapPage() {
       }, 1000);
     }
   }, [mapLoaded]);
+
+  // Add route layer to the map
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !routeData || !mapLoaded) return;
+
+    if (map.getSource("route")) {
+      (map.getSource("route") as maplibregl.GeoJSONSource).setData({
+        type: "Feature",
+        properties: {},
+        geometry: routeData,
+      });
+    } else {
+      map.addSource("route", {
+        type: "geojson",
+        data: {
+          type: "Feature",
+          properties: {},
+          geometry: routeData,
+        },
+      });
+
+      map.addLayer({
+        id: "route",
+        type: "line",
+        source: "route",
+        layout: {
+          "line-join": "round",
+          "line-cap": "round",
+        },
+        paint: {
+          "line-color": "#3887be",
+          "line-width": 5,
+          "line-opacity": 0.75,
+        },
+      });
+    }
+  }, [routeData, mapLoaded]);
 
   return (
     <div
@@ -247,7 +475,7 @@ function MapPage() {
                 "https://wms.geonorge.no/skwms1/wms.vegnett2?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&FORMAT=image/png&TRANSPARENT=true&LAYERS=Vegnett2&WIDTH=256&HEIGHT=256&CRS=EPSG:3857&STYLES=&BBOX={bbox-epsg-3857}",
               ],
               tileSize: 256,
-              attribution: "&copy; Geonorge - Norwegian Road Network",
+              attribution: "&copy; Geonorge - Vegnett",
             },
             "dsb-wms": {
               type: "raster",
@@ -256,7 +484,7 @@ function MapPage() {
               ],
               tileSize: 256,
               attribution:
-                "&copy; Norwegian Directorate for Civil Protection (DSB)",
+                "&copy; DSB - Direktoratet for samfunnssikkerhet og beredskap",
             },
             "geojson-source": {
               type: "geojson",
@@ -276,7 +504,7 @@ function MapPage() {
               type: "raster",
               source: "roads-wms",
               paint: {
-                "raster-opacity": 1,
+                "raster-opacity": 0,
               },
             },
             {
@@ -439,10 +667,12 @@ function MapPage() {
       >
         {selectedPoint && (
           <Popup
+            key={`${selectedPoint.longitude}-${selectedPoint.latitude}`} // Add unique key
             longitude={selectedPoint.longitude}
             latitude={selectedPoint.latitude}
             anchor="bottom"
             onClose={() => setSelectedPoint(null)}
+            closeOnClick={false} // Prevent closing when clicking map
           >
             <div style={{ padding: "10px" }}>
               <h3>
@@ -451,6 +681,11 @@ function MapPage() {
               <p>
                 <strong>Kapasitet:</strong> {selectedPoint.capacity} plasser
               </p>
+              {distanceToShelter && (
+                <p>
+                  <strong>Avstand:</strong> {distanceToShelter.toFixed(2)} km
+                </p>
+              )}
               <h3>
                 <strong>Koordinater:</strong>
               </h3>
@@ -473,6 +708,41 @@ function MapPage() {
         <NavigationControl />
         <ScaleControl />
       </Map>
+      <Card
+        sx={{
+          position: "absolute",
+          top: "20px",
+          left: "20px",
+          zIndex: 1,
+          backgroundColor: "rgba(38, 38, 38, 0.95)",
+          color: "white",
+          padding: "16px",
+          borderRadius: "12px",
+          minWidth: "200px",
+          backdropFilter: "blur(8px)",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
+          boxShadow: "0 4px 30px rgba(0, 0, 0, 0.1)",
+        }}
+      >
+        {distanceToShelter !== null ? (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <DirectionsWalkIcon sx={{ color: "#ffc400", fontSize: 24 }} />
+            <Box>
+              <Typography variant="body2" color="rgba(255, 255, 255, 0.7)">
+                Avstand til tilfluktsrom
+              </Typography>
+              <Typography variant="h6" sx={{ color: "#ffc400" }}>
+                {distanceToShelter.toFixed(2)} km
+              </Typography>
+            </Box>
+          </Box>
+        ) : (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <MyLocationIcon sx={{ color: "#ffc400", fontSize: 24 }} />
+            <Typography variant="body1">Finner din posisjon...</Typography>
+          </Box>
+        )}
+      </Card>
     </div>
   );
 }
