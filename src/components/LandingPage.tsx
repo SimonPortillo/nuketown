@@ -27,6 +27,7 @@ import InfoIcon from "@mui/icons-material/InfoRounded";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import CheckIcon from "@mui/icons-material/CheckRounded";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import GitHubIcon from "@mui/icons-material/GitHub";
 
 import { styled } from "@mui/material/styles";
 import { Info } from "@mui/icons-material";
@@ -116,10 +117,10 @@ const LandingPage: React.FC = () => {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundImage: "url(/assets/hero.jpg)",
+            backgroundImage: "url(/assets/hero.PNG)",
             backgroundSize: "cover",
             backgroundPosition: "center",
-            filter: "brightness(0.7) blur(2px)",
+            filter: "brightness(1.8) blur(5px)",
             zIndex: -2,
           },
           "&::after": {
@@ -566,24 +567,73 @@ const LandingPage: React.FC = () => {
         </FadeInSection>
       </Container>
 
-      <Box component="footer" sx={{ bgcolor: "background.paper", py: 6 }}>
-        <Container maxWidth="lg">
-          <Typography variant="h6" align="center" gutterBottom>
-            NukeTown Tilfluktsromfinner
-          </Typography>
-          <Typography
-            variant="subtitle1"
-            align="center"
-            color="text.secondary"
-            component="p"
-          >
-            Hjelper deg å holde deg trygg i krisetider.
-          </Typography>
-          <Typography variant="body2" color="text.secondary" align="center">
-            {"© "}
-            Gruppe 14 ved UiA {new Date().getFullYear()}
-            {"."}
-          </Typography>
+      <Box
+        component="footer"
+        sx={{
+          bgcolor: "background.paper",
+          py: 6,
+          position: "relative",
+        }}
+      >
+        <Container
+          maxWidth="lg"
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          {/* UiA Logo */}
+          <Box
+            component="img"
+            src="/assets/uia.svg"
+            alt="UiA Logo"
+            sx={{
+              height: 50,
+              filter: "brightness(0.8)",
+              opacity: 0.9,
+            }}
+          />
+
+          {/* Center Content */}
+          <Box sx={{ textAlign: "center", mr: 7 }}>
+            <Typography variant="h6" gutterBottom>
+              NukeTown Tilfluktsromfinner
+            </Typography>
+            <Typography
+              variant="subtitle1"
+              color="text.secondary"
+              component="p"
+            >
+              Hjelper deg å holde deg trygg i krisetider.
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {"© "}
+              Gruppe 14 ved UiA {new Date().getFullYear()}
+              {"."}
+            </Typography>
+          </Box>
+
+          {/* GitHub Link */}
+          <Box>
+            <Button
+              href="https://github.com/simonportillo/nuketown"
+              target="_blank"
+              rel="noopener noreferrer"
+              startIcon={<GitHubIcon />}
+              sx={{
+                mr: 8,
+                fontSize: "1.2rem",
+                color: "text.secondary",
+
+                "&:hover": {
+                  color: "primary.main",
+                },
+              }}
+            >
+              GitHub
+            </Button>
+          </Box>
         </Container>
       </Box>
     </>
