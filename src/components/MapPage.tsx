@@ -199,54 +199,84 @@ function MapPage() {
       geolocateRef.current.on("geolocate", (event) => {
         const { latitude, longitude } = event.coords;
         setUserLocation([longitude, latitude]);
+        console.log("User location updated:", [longitude, latitude]);
+      });
+
+      geolocateRef.current.on("error", (error) => {
+        if (error.code === error.PERMISSION_DENIED) {
+          console.log("GPS disabled, clearing location.");
+          setUserLocation(null);
+          setRouteData(null);
+        }
       });
     }
   }, [mapLoaded]);
+  // Use effect to handle GPS permission changes
+  useEffect(() => {
+    navigator.permissions.query({ name: "geolocation" }).then((result) => {
+      const handlePermissionChange = () => {
+        if (result.state === "denied") {
+          console.log("GPS disabled, clearing user location.");
+          setUserLocation(null);
+          setRouteData(null); // Clear route data
+        }
+      };
+
+      result.onchange = handlePermissionChange;
+      return () => {
+        result.onchange = null;
+      };
+    });
+  }, []);
 
   // Use effect to find closest shelter and get route
   useEffect(() => {
     const map = mapRef.current;
-    if (userLocation && geoJSONData && map) {
-      // Find the closest shelter
-      const closestShelter = findClosestShelter(
+    if (!userLocation || !geoJSONData || !map) {
+      return;
+    }
+
+    console.log("User location available, calculating route.");
+
+    // Find the closest shelter
+    const closestShelter = findClosestShelter(
+      userLocation[1],
+      userLocation[0],
+      geoJSONData
+    );
+
+    if (closestShelter) {
+      const coords = closestShelter.geometry.coordinates;
+
+      // Calculate the distance to the closest shelter
+      const distance = calculateDistance(
         userLocation[1],
         userLocation[0],
-        geoJSONData
+        coords[1],
+        coords[0]
       );
+      setDistanceToShelter(distance);
 
-      if (closestShelter) {
-        const coords = closestShelter.geometry.coordinates;
+      // Set the selected point
+      setSelectedPoint({
+        longitude: coords[0],
+        latitude: coords[1],
+        address: closestShelter.properties.address,
+        capacity: closestShelter.properties.capacity,
+      });
 
-        // Calculate the distance to the closest shelter
-        const distance = calculateDistance(
-          userLocation[1],
-          userLocation[0],
-          coords[1],
-          coords[0]
-        );
-        setDistanceToShelter(distance);
+      // Get the route
+      getRoute(userLocation[0], userLocation[1], coords[0], coords[1]);
 
-        // Set the selected point
-        setSelectedPoint({
-          longitude: coords[0],
-          latitude: coords[1],
-          address: closestShelter.properties.address,
-          capacity: closestShelter.properties.capacity,
-        });
+      // Fit bounds to show both points
+      const bounds = new LngLatBounds().extend(userLocation).extend(coords);
 
-        // Get the route
-        getRoute(userLocation[0], userLocation[1], coords[0], coords[1]);
-
-        // Fit bounds to show both points
-        const bounds = new LngLatBounds().extend(userLocation).extend(coords);
-
-        map.fitBounds(bounds, {
-          padding: { top: 150, bottom: 150, left: 150, right: 150 },
-          duration: 1000,
-        });
-      } else {
-        setDistanceToShelter(null);
-      }
+      map.fitBounds(bounds, {
+        padding: { top: 150, bottom: 150, left: 150, right: 150 },
+        duration: 1000,
+      });
+    } else {
+      setDistanceToShelter(null);
     }
   }, [userLocation, geoJSONData, mapRef]);
 
