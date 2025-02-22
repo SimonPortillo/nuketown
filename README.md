@@ -26,7 +26,9 @@ Følg disse trinnene for å kjøre prosjektet lokalt. Du må ha [Node.js](https:
    npm run dev
 ---
 # Forhåndsvisning
-![image](https://github.com/user-attachments/assets/cb52b96c-6f81-4dca-a00f-b8f64d29d845)
-![image](https://github.com/user-attachments/assets/ee04f401-9363-4a23-9cc1-38354de79804)
+![image](https://github.com/user-attachments/assets/6828d8e8-cf33-4128-b6ee-029ed2f9d8f0)
+
+![image](https://github.com/user-attachments/assets/461ddb00-4c0b-4306-93af-753159a6f100)
+
 
 
