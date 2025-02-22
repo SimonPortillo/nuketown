@@ -1,0 +1,29 @@
+.custom-popup .maplibregl-popup-content {
+  padding: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  border-radius: 12px !important;
+}
+
+.custom-popup .maplibregl-popup-tip {
+  display: none !important;
+}
+
+.custom-popup .maplibregl-popup-close-button {
+  display: none !important;
+}
+
+/* Add these new rules */
+.custom-popup.maplibregl-popup {
+  background: transparent !important;
+}
+
+.custom-popup .maplibregl-popup-content {
+  transform: translateY(-10px);
+  background: transparent !important;
+}
+
+/* Optional: Add transition for smooth appearance */
+.custom-popup {
+  transition: transform 0.1s ease-out;
+}

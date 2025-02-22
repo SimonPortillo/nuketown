@@ -19,6 +19,11 @@ import { library } from "@fortawesome/fontawesome-svg-core";
 import { Card, Typography, Box } from "@mui/material";
 import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
+import HomeIcon from "@mui/icons-material/Home";
+import PeopleIcon from "@mui/icons-material/People";
+import LocationOnIcon from "@mui/icons-material/LocationOn";
+import CloseIcon from "@mui/icons-material/Close";
+import "./MapPage.css"; // Add this import at the top
 
 const supabaseUrl = import.meta.env.VITE_REACT_APP_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_REACT_APP_SUPABASE_KEY;
@@ -667,35 +672,111 @@ function MapPage() {
       >
         {selectedPoint && (
           <Popup
-            key={`${selectedPoint.longitude}-${selectedPoint.latitude}`} // Add unique key
+            key={`${selectedPoint.longitude}-${selectedPoint.latitude}`}
             longitude={selectedPoint.longitude}
             latitude={selectedPoint.latitude}
             anchor="bottom"
             onClose={() => setSelectedPoint(null)}
-            closeOnClick={false} // Prevent closing when clicking map
+            closeOnClick={false}
+            className="custom-popup" // Add this class
           >
-            <div style={{ padding: "10px" }}>
-              <h3>
-                <strong>{selectedPoint.address}</strong>
-              </h3>
-              <p>
-                <strong>Kapasitet:</strong> {selectedPoint.capacity} plasser
-              </p>
-              {distanceToShelter && (
-                <p>
-                  <strong>Avstand:</strong> {distanceToShelter.toFixed(2)} km
-                </p>
-              )}
-              <h3>
-                <strong>Koordinater:</strong>
-              </h3>
-              <p>
-                <strong>Latitude:</strong> {selectedPoint.latitude}
-              </p>
-              <p>
-                <strong>Longitude:</strong> {selectedPoint.longitude}
-              </p>
-            </div>
+            <Card
+              sx={{
+                backgroundColor: "rgba(38, 38, 38, 0.95)",
+                color: "white",
+                backdropFilter: "blur(8px)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                boxShadow: "0 4px 30px rgba(0, 0, 0, 0.1)",
+                minWidth: "250px",
+                position: "relative", // Add this
+              }}
+            >
+              <Box
+                onClick={() => setSelectedPoint(null)}
+                sx={{
+                  position: "absolute",
+                  right: "8px",
+                  top: "8px",
+                  cursor: "pointer",
+                  color: "rgba(255, 255, 255, 0.7)",
+                  "&:hover": {
+                    color: "#ffc400",
+                  },
+                  zIndex: 1,
+                }}
+              >
+                <CloseIcon />
+              </Box>
+              <Box sx={{ p: 2 }}>
+                <Box
+                  sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}
+                >
+                  <HomeIcon sx={{ color: "#ffc400", fontSize: 24 }} />
+                  <Typography variant="h6" sx={{ color: "white" }}>
+                    {selectedPoint.address}
+                  </Typography>
+                </Box>
+
+                <Box
+                  sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}
+                >
+                  <PeopleIcon sx={{ color: "#ffc400", fontSize: 24 }} />
+                  <Box>
+                    <Typography
+                      variant="body2"
+                      color="rgba(255, 255, 255, 0.7)"
+                    >
+                      Kapasitet
+                    </Typography>
+                    <Typography variant="body1" sx={{ color: "#ffc400" }}>
+                      {selectedPoint.capacity} plasser
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {distanceToShelter && (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 2,
+                      mb: 2,
+                    }}
+                  >
+                    <DirectionsWalkIcon
+                      sx={{ color: "#ffc400", fontSize: 24 }}
+                    />
+                    <Box>
+                      <Typography
+                        variant="body2"
+                        color="rgba(255, 255, 255, 0.7)"
+                      >
+                        Avstand
+                      </Typography>
+                      <Typography variant="body1" sx={{ color: "#ffc400" }}>
+                        {distanceToShelter.toFixed(2)} km
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                  <LocationOnIcon sx={{ color: "#ffc400", fontSize: 24 }} />
+                  <Box>
+                    <Typography
+                      variant="body2"
+                      color="rgba(255, 255, 255, 0.7)"
+                    >
+                      Koordinater
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "#ffc400" }}>
+                      {selectedPoint.latitude.toFixed(6)},{" "}
+                      {selectedPoint.longitude.toFixed(6)}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+            </Card>
           </Popup>
         )}
         <FullscreenControl />
