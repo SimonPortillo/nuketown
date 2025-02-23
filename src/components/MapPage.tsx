@@ -110,6 +110,7 @@ function MapPage() {
     null
   );
   const [walkTime, setWalkTime] = useState<string | null>(null);
+  const mapLoadedRef = useRef(false);
 
   // Fetch data effect
   useEffect(() => {
@@ -121,27 +122,24 @@ function MapPage() {
   }, []);
 
   // Function to calculate distance between two coordinates (Haversine formula)
-  const calculateDistance = (
-    lat1: number,
-    lon1: number,
-    lat2: number,
-    lon2: number
-  ): number => {
-    const R = 6371; // Radius of the Earth in kilometers
-    const toRadians = (angle: number) => (angle * Math.PI) / 180;
-    const dLat = toRadians(lat2 - lat1);
-    const dLon = toRadians(lon1 - lon2);
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(toRadians(lat1)) *
-        Math.cos(toRadians(lat2)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distance = R * c;
-    return distance;
-  };
-
+  const calculateDistance = useCallback(
+    (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+      const R = 6371;
+      const toRadians = (angle: number) => (angle * Math.PI) / 180;
+      const dLat = toRadians(lat2 - lat1);
+      const dLon = toRadians(lon1 - lon2);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRadians(lat1)) *
+          Math.cos(toRadians(lat2)) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distance = R * c;
+      return distance;
+    },
+    []
+  );
   // Function to find the closest shelter
   const findClosestShelter = (
     userLat: number,
@@ -196,12 +194,38 @@ function MapPage() {
 
   // Use effect to handle user location changes
   useEffect(() => {
-    if (geolocateRef.current) {
-      geolocateRef.current.on("geolocate", (event) => {
-        const { latitude, longitude } = event.coords;
-        setUserLocation([longitude, latitude]);
+    if (!geolocateRef.current) return;
+
+    const geolocateControl = geolocateRef.current;
+
+    const handleGeolocate = (event: GeolocationPosition) => {
+      const { latitude, longitude } = event.coords;
+      setUserLocation((prevLocation) => {
+        if (
+          prevLocation &&
+          prevLocation[0] === longitude &&
+          prevLocation[1] === latitude
+        ) {
+          return prevLocation;
+        }
+        return [longitude, latitude];
       });
-    }
+    };
+
+    const handleTrackEnd = () => {
+      setUserLocation(null);
+    };
+
+    geolocateControl.off("geolocate", handleGeolocate);
+    geolocateControl.off("trackuserlocationend", handleTrackEnd);
+
+    geolocateControl.on("geolocate", handleGeolocate);
+    geolocateControl.on("trackuserlocationend", handleTrackEnd);
+
+    return () => {
+      geolocateControl.off("geolocate", handleGeolocate);
+      geolocateControl.off("trackuserlocationend", handleTrackEnd);
+    };
   }, [mapLoaded]);
 
   // Use effect to find closest shelter and get route
@@ -413,12 +437,19 @@ function MapPage() {
   // Add effect to trigger geolocation
   useEffect(() => {
     if (mapLoaded && geolocateRef.current) {
-      // Small delay to ensure map is fully ready
-      setTimeout(() => {
-        geolocateRef.current?.trigger();
-      }, 1000);
+      let alreadyTriggered = false;
+
+      const timeoutId = setTimeout(() => {
+        if (!alreadyTriggered && !userLocation) {
+          console.log("Triggering geolocation on map load...");
+          geolocateRef.current?.trigger(); // ✅ Now it only runs once
+          alreadyTriggered = true;
+        }
+      }, 500);
+
+      return () => clearTimeout(timeoutId);
     }
-  }, [mapLoaded]);
+  }, [mapLoaded]); // ✅ No more double triggering
 
   // Add route layer to the map
   useEffect(() => {
@@ -678,8 +709,10 @@ function MapPage() {
           ],
         }}
         onLoad={() => {
+          if (mapLoadedRef.current) return; // Hopp over hvis kartet allerede er lastet
           console.log("Map loaded");
           setMapLoaded(true);
+          mapLoadedRef.current = true; // Marker at kartet er lastet
         }}
         onError={(e) => {
           console.error("Map error:", e);
@@ -800,7 +833,7 @@ function MapPage() {
         <FullscreenControl />
         <GeolocateControl
           ref={geolocateRef as any}
-          positionOptions={{ enableHighAccuracy: true }}
+          positionOptions={{ enableHighAccuracy: false }}
           trackUserLocation={true}
           showUserLocation={true}
         />
