@@ -54,10 +54,12 @@ interface ShelterData {
   };
   adresse: string;
   plasser: number;
+  population: number;
+  coverage_ratio: number;
 }
 
 const fetchGeoJSONData = async () => {
-  const { data, error } = await supabase.rpc("get_shelters_geojson_with_info");
+  const { data, error } = await supabase.rpc("get_shelters_with_population");
 
   if (error) {
     console.error("Error fetching data:", error);
@@ -79,6 +81,8 @@ const fetchGeoJSONData = async () => {
         id: item.shelter_id,
         address: item.adresse,
         capacity: item.plasser,
+        population: item.population,
+        coverage_ratio: item.coverage_ratio,
       },
     })),
   };
@@ -98,6 +102,8 @@ function MapPage() {
     latitude: number;
     address: string;
     capacity: number;
+    population?: number;
+    coverage_ratio?: number;
   } | null>(null);
   const geolocateRef = useRef<maplibregl.GeolocateControl | undefined>(
     undefined
@@ -229,13 +235,15 @@ function MapPage() {
 
         const walkTimeMinutes = (distance / 5) * 60;
         setWalkTime(`${Math.round(walkTimeMinutes)}`);
-        console.log("Walk time:", walkTimeMinutes);
-        // Set the selected point
+
+        // Update this part to include population and coverage data
         setSelectedPoint({
           longitude: coords[0],
           latitude: coords[1],
           address: closestShelter.properties.address,
           capacity: closestShelter.properties.capacity,
+          population: closestShelter.properties.population,
+          coverage_ratio: closestShelter.properties.coverage_ratio,
         });
 
         // Get the route
@@ -291,6 +299,8 @@ function MapPage() {
           latitude: coords[1],
           address: feature.properties?.address as string,
           capacity: feature.properties?.capacity as number,
+          population: feature.properties?.population as number,
+          coverage_ratio: feature.properties?.coverage_ratio as number,
         });
 
         // Handle route and distance if we have user location
@@ -746,6 +756,91 @@ function MapPage() {
                     <Typography variant="body1" sx={{ color: "#ffc400" }}>
                       {selectedPoint.capacity} plasser
                     </Typography>
+                  </Box>
+                </Box>
+                <Box
+                  sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}
+                >
+                  <PeopleIcon sx={{ color: "#ffc400", fontSize: 24 }} />
+                  <Box sx={{ width: "100%" }}>
+                    <Typography
+                      variant="body2"
+                      color="rgba(255, 255, 255, 0.7)"
+                    >
+                      Områdedekning
+                    </Typography>
+                    {selectedPoint.population ? (
+                      <>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            mb: 0.5,
+                          }}
+                        >
+                          <Typography variant="body1" sx={{ color: "#ffc400" }}>
+                            {selectedPoint.coverage_ratio?.toFixed(1)}% dekning
+                          </Typography>
+                          <Typography
+                            variant="body2"
+                            color="rgba(255, 255, 255, 0.7)"
+                          >
+                            {selectedPoint.population.toLocaleString()} personer
+                            i området
+                          </Typography>
+                        </Box>
+                        <Box
+                          sx={{
+                            width: "100%",
+                            bgcolor: "rgba(255, 255, 255, 0.1)",
+                            borderRadius: 1,
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              width: `${Math.min(
+                                selectedPoint.coverage_ratio ?? 0,
+                                100
+                              )}%`,
+                              height: 8,
+                              borderRadius: 1,
+                              bgcolor:
+                                (selectedPoint.coverage_ratio ?? 0) >= 100
+                                  ? "#4caf50"
+                                  : (selectedPoint.coverage_ratio ?? 0) >= 50
+                                  ? "#ffc400"
+                                  : "#f44336",
+                              transition: "width 0.5s ease-in-out",
+                            }}
+                          />
+                        </Box>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            color:
+                              (selectedPoint.coverage_ratio ?? 0) >= 100
+                                ? "#4caf50"
+                                : (selectedPoint.coverage_ratio ?? 0) >= 50
+                                ? "#ffc400"
+                                : "#f44336",
+                            mt: 0.5,
+                          }}
+                        >
+                          {(selectedPoint.coverage_ratio ?? 0) >= 100
+                            ? "God dekning"
+                            : (selectedPoint.coverage_ratio ?? 0) >= 50
+                            ? "Begrenset dekning"
+                            : "Kritisk underdekning"}
+                        </Typography>
+                      </>
+                    ) : (
+                      <Typography
+                        variant="body2"
+                        color="rgba(255, 255, 255, 0.7)"
+                      >
+                        Ingen befolkningsdata tilgjengelig
+                      </Typography>
+                    )}
                   </Box>
                 </Box>
 
