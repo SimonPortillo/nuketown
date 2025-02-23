@@ -109,6 +109,7 @@ function MapPage() {
   const [distanceToShelter, setDistanceToShelter] = useState<number | null>(
     null
   );
+  const [walkTime, setWalkTime] = useState<string | null>(null);
 
   // Fetch data effect
   useEffect(() => {
@@ -226,6 +227,9 @@ function MapPage() {
         );
         setDistanceToShelter(distance);
 
+        const walkTimeMinutes = (distance / 5) * 60;
+        setWalkTime(`${Math.round(walkTimeMinutes)}`);
+        console.log("Walk time:", walkTimeMinutes);
         // Set the selected point
         setSelectedPoint({
           longitude: coords[0],
@@ -302,6 +306,10 @@ function MapPage() {
 
           console.log("Distance calculated:", distance);
           setDistanceToShelter(distance);
+
+          const walkTimeMinutes = (distance / 5) * 60;
+          setWalkTime(`${Math.round(walkTimeMinutes)}`);
+          console.log("Walk time:", walkTimeMinutes);
 
           // Get route
           getRoute(userLocation[0], userLocation[1], coords[0], coords[1]);
@@ -393,7 +401,14 @@ function MapPage() {
     } catch (error) {
       console.error("Error setting up map:", error);
     }
-  }, [geoJSONData, mapLoaded, userLocation, getRoute, calculateDistance]);
+  }, [
+    geoJSONData,
+    mapLoaded,
+    userLocation,
+    getRoute,
+    calculateDistance,
+    walkTime,
+  ]);
 
   // Add effect to trigger geolocation
   useEffect(() => {
@@ -755,6 +770,9 @@ function MapPage() {
                       </Typography>
                       <Typography variant="body1" sx={{ color: "#ffc400" }}>
                         {distanceToShelter.toFixed(2)} km
+                      </Typography>
+                      <Typography variant="body1" sx={{ color: "#ffc400" }}>
+                        Estimert gange: {walkTime} min
                       </Typography>
                     </Box>
                   </Box>
