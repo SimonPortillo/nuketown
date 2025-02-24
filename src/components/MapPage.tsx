@@ -700,9 +700,78 @@ function MapPage() {
               },
             },
             {
+              id: "shelter-heatmap",
+              type: "heatmap",
+              source: "geojson-source",
+              maxzoom: 11,
+              paint: {
+                // Increase weight based on population
+                "heatmap-weight": [
+                  "interpolate",
+                  ["linear"],
+                  ["get", "population"],
+                  0,
+                  0,
+                  1000,
+                  0.5,
+                  5000,
+                  1,
+                ],
+                // Increase intensity as zoom level increases
+                "heatmap-intensity": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  0,
+                  1,
+                  11,
+                  3,
+                ],
+                // Color gradient from cool to hot
+                "heatmap-color": [
+                  "interpolate",
+                  ["linear"],
+                  ["heatmap-density"],
+                  0,
+                  "rgba(0, 0, 255, 0)",
+                  0.2,
+                  "rgba(0, 0, 255, 0.5)",
+                  0.4,
+                  "rgba(0, 255, 255, 0.7)",
+                  0.6,
+                  "rgba(255, 255, 0, 0.8)",
+                  0.8,
+                  "rgba(255, 128, 0, 0.9)",
+                  1,
+                  "rgba(255, 0, 0, 1)",
+                ],
+                // Larger radius for better cluster visualization
+                "heatmap-radius": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  0,
+                  4,
+                  11,
+                  30,
+                ],
+                // Smooth transition
+                "heatmap-opacity": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  10,
+                  1,
+                  11,
+                  0,
+                ],
+              },
+            },
+            {
               id: "geojson-layer-heat",
               type: "circle",
               source: "geojson-source",
+              minzoom: 11,
               paint: {
                 "circle-radius": [
                   "interpolate",
@@ -744,6 +813,7 @@ function MapPage() {
               id: "geojson-layer-glow",
               type: "circle",
               source: "geojson-source",
+              minzoom: 11,
               paint: {
                 "circle-radius": [
                   "interpolate",
@@ -775,6 +845,7 @@ function MapPage() {
               id: "geojson-layer",
               type: "circle",
               source: "geojson-source",
+              minzoom: 11,
               paint: {
                 "circle-radius": [
                   "interpolate",
@@ -805,6 +876,7 @@ function MapPage() {
               id: "geojson-layer-symbols",
               type: "symbol",
               source: "geojson-source",
+              minzoom: 11,
               layout: {
                 "icon-image": "biohazard-icon",
                 "icon-size": [
@@ -843,6 +915,7 @@ function MapPage() {
               id: "police-layer-heat",
               type: "circle",
               source: "police-source",
+              minzoom: 11,
               paint: {
                 "circle-radius": [
                   "interpolate",
@@ -884,6 +957,7 @@ function MapPage() {
               id: "police-layer-glow",
               type: "circle",
               source: "police-source",
+              minzoom: 11,
               paint: {
                 "circle-radius": [
                   "interpolate",
@@ -915,6 +989,7 @@ function MapPage() {
               id: "police-layer",
               type: "circle",
               source: "police-source",
+              minzoom: 11,
               paint: {
                 "circle-radius": [
                   "interpolate",
@@ -945,6 +1020,7 @@ function MapPage() {
               id: "police-layer-symbols",
               type: "symbol",
               source: "police-source",
+              minzoom: 11,
               layout: {
                 "icon-image": "handcuffs-icon",
                 "icon-size": [
