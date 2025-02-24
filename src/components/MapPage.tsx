@@ -16,7 +16,7 @@ import type { MapGeoJSONFeature } from "maplibre-gl";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { faRadiation, faHandcuffs } from "@fortawesome/free-solid-svg-icons";
 import { library } from "@fortawesome/fontawesome-svg-core";
-import { Card, Typography, Box } from "@mui/material";
+import { Card, Typography, Box, Switch, FormControlLabel } from "@mui/material";
 import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import HomeIcon from "@mui/icons-material/Home";
@@ -142,6 +142,7 @@ function MapPage() {
   const mapLoadedRef = useRef(false);
   const [selectedPoliceStation, setSelectedPoliceStation] =
     useState<PoliceStation | null>(null);
+  const [showPoliceStations, setShowPoliceStations] = useState(false);
 
   // Fetch data effect
   useEffect(() => {
@@ -916,6 +917,9 @@ function MapPage() {
               type: "circle",
               source: "police-source",
               minzoom: 11,
+              layout: {
+                visibility: showPoliceStations ? "visible" : "none",
+              },
               paint: {
                 "circle-radius": [
                   "interpolate",
@@ -958,6 +962,9 @@ function MapPage() {
               type: "circle",
               source: "police-source",
               minzoom: 11,
+              layout: {
+                visibility: showPoliceStations ? "visible" : "none",
+              },
               paint: {
                 "circle-radius": [
                   "interpolate",
@@ -990,6 +997,9 @@ function MapPage() {
               type: "circle",
               source: "police-source",
               minzoom: 11,
+              layout: {
+                visibility: showPoliceStations ? "visible" : "none",
+              },
               paint: {
                 "circle-radius": [
                   "interpolate",
@@ -1022,6 +1032,7 @@ function MapPage() {
               source: "police-source",
               minzoom: 11,
               layout: {
+                visibility: showPoliceStations ? "visible" : "none",
                 "icon-image": "handcuffs-icon",
                 "icon-size": [
                   "interpolate",
@@ -1396,6 +1407,54 @@ function MapPage() {
             <Typography variant="body1">Finner din posisjon...</Typography>
           </Box>
         )}
+      </Card>
+      <Card
+        sx={{
+          position: "absolute",
+          left: "20px",
+          top: "13%",
+          transform: "translateY(-50%)",
+          zIndex: 1,
+          backgroundColor: "rgba(38, 38, 38, 0.95)",
+          color: "white",
+          padding: "11px",
+          borderRadius: "12px",
+          backdropFilter: "blur(8px)",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
+          boxShadow: "0 4px 30px rgba(0, 0, 0, 0.1)",
+        }}
+      >
+        <FormControlLabel
+          control={
+            <Switch
+              checked={showPoliceStations}
+              onChange={(e) => setShowPoliceStations(e.target.checked)}
+              sx={{
+                "& .MuiSwitch-switchBase.Mui-checked": {
+                  color: "#0066ff",
+                  "&:hover": {
+                    backgroundColor: "rgba(0, 102, 255, 0.08)",
+                  },
+                },
+                "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+                  backgroundColor: "#0066ff",
+                },
+              }}
+            />
+          }
+          label={
+            <Typography
+              sx={{
+                color: showPoliceStations
+                  ? "#0066ff"
+                  : "rgba(255, 255, 255, 0.7)",
+                transition: "color 0.3s ease",
+              }}
+            >
+              Vis politistasjoner
+            </Typography>
+          }
+        />
       </Card>
     </div>
   );
