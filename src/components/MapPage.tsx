@@ -14,7 +14,7 @@ import { createClient } from "@supabase/supabase-js";
 import proj4 from "proj4";
 import type { MapGeoJSONFeature } from "maplibre-gl";
 import type { Map as MaplibreMap } from "maplibre-gl";
-import { faRadiation } from "@fortawesome/free-solid-svg-icons";
+import { faRadiation, faHandcuffs } from "@fortawesome/free-solid-svg-icons";
 import { library } from "@fortawesome/fontawesome-svg-core";
 import { Card, Typography, Box } from "@mui/material";
 import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
@@ -24,6 +24,12 @@ import PeopleIcon from "@mui/icons-material/People";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import CloseIcon from "@mui/icons-material/Close";
 import "./MapPage.css"; // Add this import at the top
+import type {
+  FeatureCollection,
+  Geometry,
+  GeoJsonProperties,
+  Point,
+} from "geojson";
 
 const supabaseUrl = import.meta.env.VITE_REACT_APP_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_REACT_APP_SUPABASE_KEY;
@@ -46,6 +52,14 @@ const transformCoordinates = (coords: number[]): number[] => {
   return proj4("EPSG:25833", "EPSG:4326", coords);
 };
 
+interface PoliceStation {
+  id: number;
+  name: string;
+  phone?: string;
+  lon: number;
+  lat: number;
+}
+
 interface ShelterData {
   shelter_id: number;
   geom: {
@@ -57,6 +71,14 @@ interface ShelterData {
   population: number;
   coverage_ratio: number;
 }
+const fetchPoliceStations = async () => {
+  const { data, error } = await supabase.from("politi_stasjoner").select("*");
+  if (error) {
+    console.error("Error fetching police stations:", error);
+    return [];
+  }
+  return data;
+};
 
 const fetchGeoJSONData = async () => {
   const { data, error } = await supabase.rpc("get_shelters_with_population");
@@ -91,9 +113,10 @@ const fetchGeoJSONData = async () => {
 };
 
 // Add icon to library
-library.add(faRadiation);
+library.add(faRadiation, faHandcuffs);
 
 function MapPage() {
+  const [policeStations, setPoliceStations] = useState<PoliceStation[]>([]);
   const [geoJSONData, setGeoJSONData] = useState<any | null>(null);
   const mapRef = useRef<MaplibreMap | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -117,12 +140,16 @@ function MapPage() {
   );
   const [walkTime, setWalkTime] = useState<string | null>(null);
   const mapLoadedRef = useRef(false);
+  const [selectedPoliceStation, setSelectedPoliceStation] =
+    useState<PoliceStation | null>(null);
 
   // Fetch data effect
   useEffect(() => {
     const getData = async () => {
       const data = await fetchGeoJSONData();
+      const policeData = await fetchPoliceStations();
       setGeoJSONData(data);
+      setPoliceStations(policeData);
     };
     getData();
   }, []);
@@ -133,7 +160,7 @@ function MapPage() {
       const R = 6371;
       const toRadians = (angle: number) => (angle * Math.PI) / 180;
       const dLat = toRadians(lat2 - lat1);
-      const dLon = toRadians(lon1 - lon2);
+      const dLon = toRadians(lon2 - lon1);
       const a =
         Math.sin(dLat / 2) * Math.sin(dLat / 2) +
         Math.cos(toRadians(lat1)) *
@@ -297,12 +324,7 @@ function MapPage() {
 
       // Setup click handler
       const handleClick = (e: { features?: MapGeoJSONFeature[] }) => {
-        console.log("Click detected", e.features?.[0]);
-
-        if (!e.features?.[0]) {
-          console.log("No feature found");
-          return;
-        }
+        if (!e.features?.[0]) return;
 
         const feature = e.features[0];
         const coords = (
@@ -312,12 +334,10 @@ function MapPage() {
           }
         ).coordinates;
 
-        console.log("Setting selected point:", {
-          coords,
-          properties: feature.properties,
-        });
+        // Clear any selected police station
+        setSelectedPoliceStation(null);
 
-        // Set selected point
+        // Set selected shelter point
         setSelectedPoint({
           longitude: coords[0],
           latitude: coords[1],
@@ -428,6 +448,23 @@ function MapPage() {
       const blob = new Blob([svgString], { type: "image/svg+xml" });
       img.src = URL.createObjectURL(blob);
 
+      // Add this after the biohazard icon setup
+      const handcuffsImg = new Image();
+      handcuffsImg.onload = () => {
+        if (map.hasImage("handcuffs-icon")) return;
+        map.addImage("handcuffs-icon", handcuffsImg);
+      };
+
+      const handcuffsSvgString = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 512 512">
+          <path fill="#FFFFFF" d="${faHandcuffs.icon[4]}" transform="scale(0.65) translate(150, 150)"/>
+        </svg>
+      `;
+      const handcuffsBlob = new Blob([handcuffsSvgString], {
+        type: "image/svg+xml",
+      });
+      handcuffsImg.src = URL.createObjectURL(handcuffsBlob);
+
       return () => {
         // Cleanup
         map.off("click", "geojson-layer-symbols", handleClick);
@@ -461,6 +498,33 @@ function MapPage() {
     }
   }, [mapLoaded]); // ✅ No more double triggering
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+
+    const policeSource = map.getSource(
+      "police-source"
+    ) as maplibregl.GeoJSONSource;
+    if (policeSource) {
+      const policeData: FeatureCollection<Geometry, GeoJsonProperties> = {
+        type: "FeatureCollection",
+        features: policeStations.map((station) => ({
+          type: "Feature",
+          geometry: {
+            type: "Point",
+            coordinates: [station.lon, station.lat],
+          },
+          properties: {
+            id: station.id,
+            name: station.name,
+            phone: station.phone,
+          },
+        })),
+      };
+
+      policeSource.setData(policeData);
+    }
+  }, [policeStations, mapLoaded]);
   // Add route layer to the map
   useEffect(() => {
     const map = mapRef.current;
@@ -498,6 +562,44 @@ function MapPage() {
       });
     }
   }, [routeData, mapLoaded]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+
+    // Add click handler for police stations
+    map.on("click", "police-layer-symbols", (e) => {
+      if (e.features && e.features[0]) {
+        const properties = e.features[0].properties;
+        const geometry = e.features[0].geometry as Point;
+        const coords = geometry.coordinates;
+
+        // Clear any selected shelter point
+        setSelectedPoint(null);
+
+        setSelectedPoliceStation({
+          id: properties.id,
+          name: properties.name,
+          phone: properties.phone,
+          lon: coords[0],
+          lat: coords[1],
+        });
+      }
+    });
+
+    // Add hover effects for police stations
+    map.on("mouseenter", "police-layer-symbols", () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+
+    map.on("mouseleave", "police-layer-symbols", () => {
+      map.getCanvas().style.cursor = "";
+    });
+
+    return () => {
+      map.off("click", "police-layer-symbols", () => {});
+    };
+  }, [mapLoaded]);
 
   return (
     <div
@@ -550,6 +652,27 @@ function MapPage() {
             "geojson-source": {
               type: "geojson",
               data: geoJSONData || { type: "FeatureCollection", features: [] },
+            },
+            "police-source": {
+              type: "geojson",
+              data:
+                policeStations && policeStations.length > 0
+                  ? {
+                      type: "FeatureCollection",
+                      features: policeStations.map((station) => ({
+                        type: "Feature",
+                        geometry: {
+                          type: "Point",
+                          coordinates: [station.lon, station.lat],
+                        },
+                        properties: {
+                          id: station.id,
+                          name: station.name,
+                          phone: station.phone,
+                        },
+                      })),
+                    }
+                  : { type: "FeatureCollection", features: [] },
             },
           },
           layers: [
@@ -701,6 +824,146 @@ function MapPage() {
                 "icon-ignore-placement": true,
                 "icon-anchor": "center",
                 "icon-offset": [0, 0],
+              },
+              paint: {
+                "icon-opacity": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  12,
+                  0,
+                  13,
+                  0.7,
+                  14,
+                  1,
+                ],
+              },
+            },
+            {
+              id: "police-layer-heat",
+              type: "circle",
+              source: "police-source",
+              paint: {
+                "circle-radius": [
+                  "interpolate",
+                  ["exponential", 1.75],
+                  ["zoom"],
+                  12,
+                  30,
+                  14,
+                  45,
+                  16,
+                  60,
+                ],
+                "circle-color": "#0066ff",
+                "circle-opacity": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  12,
+                  0.2,
+                  14,
+                  0.15,
+                  15,
+                  0.1,
+                ],
+                "circle-blur": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  12,
+                  1,
+                  14,
+                  0.8,
+                  16,
+                  0.6,
+                ],
+              },
+            },
+            {
+              id: "police-layer-glow",
+              type: "circle",
+              source: "police-source",
+              paint: {
+                "circle-radius": [
+                  "interpolate",
+                  ["exponential", 1.75],
+                  ["zoom"],
+                  12,
+                  20,
+                  14,
+                  30,
+                  16,
+                  40,
+                ],
+                "circle-color": "#3884ff",
+                "circle-opacity": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  12,
+                  0.4,
+                  14,
+                  0.3,
+                  15,
+                  0.2,
+                ],
+                "circle-blur": 1,
+              },
+            },
+            {
+              id: "police-layer",
+              type: "circle",
+              source: "police-source",
+              paint: {
+                "circle-radius": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  12,
+                  6,
+                  14,
+                  12,
+                  16,
+                  14,
+                ],
+                "circle-color": "#0066ff",
+                "circle-stroke-width": 2,
+                "circle-stroke-color": "#FFFFFF",
+                "circle-opacity": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  12,
+                  0.9,
+                  14,
+                  1,
+                ],
+              },
+            },
+            {
+              id: "police-layer-symbols",
+              type: "symbol",
+              source: "police-source",
+              layout: {
+                "icon-image": "handcuffs-icon",
+                "icon-size": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  12,
+                  0,
+                  13,
+                  0.4,
+                  14,
+                  0.5,
+                  16,
+                  0.6,
+                ],
+                "icon-allow-overlap": true,
+                "icon-ignore-placement": true,
+                "icon-anchor": "center",
+                "icon-offset": [-3, -2],
               },
               paint: {
                 "icon-opacity": [
@@ -918,6 +1181,94 @@ function MapPage() {
                     <Typography variant="body2" sx={{ color: "#ffc400" }}>
                       {selectedPoint.latitude.toFixed(6)},{" "}
                       {selectedPoint.longitude.toFixed(6)}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+            </Card>
+          </Popup>
+        )}
+        {selectedPoliceStation && (
+          <Popup
+            longitude={selectedPoliceStation.lon}
+            latitude={selectedPoliceStation.lat}
+            anchor="bottom"
+            onClose={() => setSelectedPoliceStation(null)}
+            closeOnClick={false}
+            className="custom-popup"
+          >
+            <Card
+              sx={{
+                backgroundColor: "rgba(38, 38, 38, 0.95)",
+                color: "white",
+                backdropFilter: "blur(8px)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                boxShadow: "0 4px 30px rgba(0, 0, 0, 0.1)",
+                minWidth: "250px",
+                position: "relative",
+              }}
+            >
+              <Box
+                onClick={() => setSelectedPoliceStation(null)}
+                sx={{
+                  position: "absolute",
+                  right: "8px",
+                  top: "8px",
+                  cursor: "pointer",
+                  color: "rgba(255, 255, 255, 0.7)",
+                  "&:hover": {
+                    color: "#0066ff",
+                  },
+                  zIndex: 1,
+                }}
+              >
+                <CloseIcon />
+              </Box>
+              <Box sx={{ p: 2 }}>
+                <Box
+                  sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}
+                >
+                  <PeopleIcon sx={{ color: "#0066ff", fontSize: 24 }} />
+                  <Typography variant="h6" sx={{ color: "white" }}>
+                    {selectedPoliceStation.name}
+                  </Typography>
+                </Box>
+
+                {selectedPoliceStation.phone && (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 2,
+                      mb: 2,
+                    }}
+                  >
+                    <Box>
+                      <Typography
+                        variant="body2"
+                        color="rgba(255, 255, 255, 0.7)"
+                      >
+                        Telefon
+                      </Typography>
+                      <Typography variant="body1" sx={{ color: "#0066ff" }}>
+                        {selectedPoliceStation.phone}
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                  <LocationOnIcon sx={{ color: "#0066ff", fontSize: 24 }} />
+                  <Box>
+                    <Typography
+                      variant="body2"
+                      color="rgba(255, 255, 255, 0.7)"
+                    >
+                      Koordinater
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "#0066ff" }}>
+                      {selectedPoliceStation.lat.toFixed(6)},{" "}
+                      {selectedPoliceStation.lon.toFixed(6)}
                     </Typography>
                   </Box>
                 </Box>
