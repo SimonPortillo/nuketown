@@ -157,11 +157,10 @@ function MapPage() {
   const [is3DMode, setIs3DMode] = useState(false);
   const [showRoads, setShowRoads] = useState(false);
 
-  const [showControls, setShowControls] = useState(true);
+  const [showControls, setShowControls] = useState(false);
   const initialRouteSet = useRef(false);
   const routeInitialized = useRef(false);
   const styleDataTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
 
   // Add this utility function to handle 3D buildings
   const handle3DBuildings = useCallback((map: MaplibreMap, show: boolean) => {
@@ -418,10 +417,11 @@ function MapPage() {
         const centerLng = (userLocation[0] + coords[0]) / 2;
         const centerLat = (userLocation[1] + coords[1]) / 2;
 
-        map.fitBounds(bounds, {
-          padding: { top: 300, bottom: 300, left: 300, right: 300 },
-          duration: 1000,
-
+        map.flyTo({
+          center: [centerLng, centerLat],
+          zoom: 14,
+          duration: 2000,
+          essential: true,
         });
 
         // Set the flag to prevent further initial route calculations
@@ -486,8 +486,13 @@ function MapPage() {
 
           // Get route without bounds fitting
           getRoute(userLocation[0], userLocation[1], coords[0], coords[1]);
+          // Fit bounds to show both points
+          const bounds = new LngLatBounds().extend(userLocation).extend(coords);
 
-
+          map.fitBounds(bounds, {
+            padding: { top: 200, bottom: 200, left: 200, right: 200 },
+            duration: 1000,
+          });
         } else {
           console.log("No user location available");
         }
