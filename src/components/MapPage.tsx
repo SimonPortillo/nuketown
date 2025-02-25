@@ -156,12 +156,10 @@ function MapPage() {
   const [showPoliceStations, setShowPoliceStations] = useState(false);
   const [is3DMode, setIs3DMode] = useState(false);
   const [showRoads, setShowRoads] = useState(false);
-
   const [showControls, setShowControls] = useState(true);
   const initialRouteSet = useRef(false);
   const routeInitialized = useRef(false);
   const styleDataTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
 
   // Add this utility function to handle 3D buildings
   const handle3DBuildings = useCallback((map: MaplibreMap, show: boolean) => {
@@ -414,14 +412,12 @@ function MapPage() {
         // Get the route
         getRoute(userLocation[0], userLocation[1], coords[0], coords[1]);
 
-        // Calculate center point between user and shelter
-        const centerLng = (userLocation[0] + coords[0]) / 2;
-        const centerLat = (userLocation[1] + coords[1]) / 2;
+        // Fit bounds to show both points
+        const bounds = new LngLatBounds().extend(userLocation).extend(coords);
 
         map.fitBounds(bounds, {
           padding: { top: 300, bottom: 300, left: 300, right: 300 },
           duration: 1000,
-
         });
 
         // Set the flag to prevent further initial route calculations
@@ -486,8 +482,6 @@ function MapPage() {
 
           // Get route without bounds fitting
           getRoute(userLocation[0], userLocation[1], coords[0], coords[1]);
-
-
         } else {
           console.log("No user location available");
         }
@@ -784,9 +778,9 @@ function MapPage() {
           mapRef.current = ref?.getMap() ?? null;
         }}
         initialViewState={{
-          longitude: 8.5, // Adjusted to center of Norway
-          latitude: 64,
-          zoom: 4,
+          longitude: 10.7522, // Adjusted to center of Norway
+          latitude: 59.9139,
+          zoom: 5,
           pitch: is3DMode ? 45 : 0,
           bearing: 0,
         }}
