@@ -12,9 +12,19 @@ import { LngLatBounds } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { createClient } from "@supabase/supabase-js";
 import proj4 from "proj4";
-import type { MapGeoJSONFeature } from "maplibre-gl";
-import type { Map as MaplibreMap } from "maplibre-gl";
-import { faRadiation, faHandcuffs } from "@fortawesome/free-solid-svg-icons";
+import type {
+  MapGeoJSONFeature,
+  Map as MaplibreMap,
+  FillExtrusionLayerSpecification,
+} from "maplibre-gl";
+import {
+  faRadiation,
+  faHandcuffs,
+  faRoad,
+  faCube,
+  faLayerGroup,
+  faXmark,
+} from "@fortawesome/free-solid-svg-icons";
 import { library } from "@fortawesome/fontawesome-svg-core";
 import { Card, Typography, Box, Switch, FormControlLabel } from "@mui/material";
 import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
@@ -23,6 +33,7 @@ import HomeIcon from "@mui/icons-material/Home";
 import PeopleIcon from "@mui/icons-material/People";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import CloseIcon from "@mui/icons-material/Close";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import "./MapPage.css"; // Add this import at the top
 import type {
   FeatureCollection,
@@ -113,7 +124,7 @@ const fetchGeoJSONData = async () => {
 };
 
 // Add icon to library
-library.add(faRadiation, faHandcuffs);
+library.add(faRadiation, faHandcuffs, faRoad, faCube, faLayerGroup, faXmark);
 
 function MapPage() {
   const [policeStations, setPoliceStations] = useState<PoliceStation[]>([]);
@@ -143,6 +154,103 @@ function MapPage() {
   const [selectedPoliceStation, setSelectedPoliceStation] =
     useState<PoliceStation | null>(null);
   const [showPoliceStations, setShowPoliceStations] = useState(false);
+  const [is3DMode, setIs3DMode] = useState(false);
+  const [showRoads, setShowRoads] = useState(false);
+  const [showControls, setShowControls] = useState(false);
+
+  // Add this utility function to handle 3D buildings
+  const handle3DBuildings = useCallback((map: MaplibreMap, show: boolean) => {
+    if (!map) return;
+
+    // Check if we need to add the source
+    if (show && !map.getSource("openmaptiles")) {
+      map.addSource("openmaptiles", {
+        url: `https://api.maptiler.com/tiles/v3/tiles.json?key=eE87Cs6ofbIAP2G5mFFy`,
+        type: "vector",
+      });
+    }
+
+    // Check if the layer exists
+    const buildingLayer = map.getLayer("3d-buildings");
+
+    if (show && !buildingLayer) {
+      // Find the first symbol layer
+      const layers = map.getStyle().layers || [];
+      let labelLayerId: string | undefined;
+
+      for (const layer of layers) {
+        if (
+          layer.type === "symbol" &&
+          layer.layout &&
+          "text-field" in layer.layout
+        ) {
+          labelLayerId = layer.id;
+          break;
+        }
+      }
+
+      const newBuildingLayer: FillExtrusionLayerSpecification = {
+        id: "3d-buildings",
+        type: "fill-extrusion",
+        source: "openmaptiles",
+        "source-layer": "building",
+        minzoom: 15,
+        filter: ["!=", ["get", "hide_3d"], true],
+        paint: {
+          "fill-extrusion-color": [
+            "interpolate",
+            ["linear"],
+            ["get", "render_height"],
+            0,
+            "#141414",
+            50,
+            "#0d0900",
+            400,
+            "lightblue",
+          ],
+          "fill-extrusion-height": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            15,
+            0,
+            16,
+            ["get", "render_height"],
+          ],
+          "fill-extrusion-base": [
+            "case",
+            [">=", ["get", "zoom"], 16],
+            ["get", "render_min_height"],
+            0,
+          ],
+          "fill-extrusion-opacity": 0.8,
+        },
+      };
+
+      map.addLayer(newBuildingLayer, labelLayerId);
+    } else if (buildingLayer) {
+      map.setLayoutProperty(
+        "3d-buildings",
+        "visibility",
+        show ? "visible" : "none"
+      );
+    }
+
+    // Update map pitch and bearing
+    if (show) {
+      map.easeTo({
+        pitch: 45,
+        bearing: -17.6,
+        duration: 1000,
+      });
+    } else {
+      map.easeTo({
+        pitch: 0,
+        bearing: 0,
+        duration: 1000,
+      });
+    }
+  }, []);
 
   // Fetch data effect
   useEffect(() => {
@@ -301,12 +409,16 @@ function MapPage() {
         // Get the route
         getRoute(userLocation[0], userLocation[1], coords[0], coords[1]);
 
-        // Fit bounds to show both points
-        const bounds = new LngLatBounds().extend(userLocation).extend(coords);
+        // Calculate center point between user and shelter
+        const centerLng = (userLocation[0] + coords[0]) / 2;
+        const centerLat = (userLocation[1] + coords[1]) / 2;
 
-        map.fitBounds(bounds, {
-          padding: { top: 150, bottom: 150, left: 150, right: 150 },
-          duration: 1000,
+        // Fly to the center point with appropriate zoom level
+        map.flyTo({
+          center: [centerLng, centerLat],
+          zoom: 14,
+          duration: 2000,
+          essential: true,
         });
       } else {
         setDistanceToShelter(null);
@@ -373,7 +485,7 @@ function MapPage() {
           const bounds = new LngLatBounds().extend(userLocation).extend(coords);
 
           map.fitBounds(bounds, {
-            padding: { top: 150, bottom: 150, left: 150, right: 150 },
+            padding: { top: 200, bottom: 200, left: 200, right: 200 },
             duration: 1000,
           });
         } else {
@@ -602,6 +714,26 @@ function MapPage() {
     };
   }, [mapLoaded]);
 
+  // Update the is3DMode effect to use the new handler
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+    handle3DBuildings(map, is3DMode);
+  }, [is3DMode, mapLoaded, handle3DBuildings]);
+
+  // Add this effect to maintain 3D buildings when other style changes occur
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded || !is3DMode) return;
+
+    // Short timeout to ensure the style has finished updating
+    const timeoutId = setTimeout(() => {
+      handle3DBuildings(map, true);
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
+  }, [showPoliceStations, showRoads, mapLoaded, handle3DBuildings, is3DMode]);
+
   return (
     <div
       style={{
@@ -617,21 +749,19 @@ function MapPage() {
           mapRef.current = ref?.getMap() ?? null;
         }}
         initialViewState={{
-          longitude: 10.7522, // Adjusted to center of Norway
-          latitude: 59.9139,
-          zoom: 5,
+          longitude: 8.5, // Adjusted to center of Norway
+          latitude: 64,
+          zoom: 4,
+          pitch: is3DMode ? 45 : 0,
+          bearing: 0,
         }}
         style={{ width: "100%", height: "100%" }}
         mapStyle={{
           version: 8,
           sources: {
-            openstreetmap: {
-              type: "raster",
-              tiles: [
-                "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-              ],
-              tileSize: 256,
-              attribution: "&copy; openstreetmap",
+            "vector-tiles": {
+              type: "vector",
+              url: "https://api.maptiler.com/tiles/v3/tiles.json?key=eE87Cs6ofbIAP2G5mFFy",
             },
             "roads-wms": {
               type: "raster",
@@ -640,15 +770,6 @@ function MapPage() {
               ],
               tileSize: 256,
               attribution: "&copy; Geonorge - Vegnett",
-            },
-            "dsb-wms": {
-              type: "raster",
-              tiles: [
-                "https://ogc.dsb.no/wms.ashx?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&FORMAT=image/png&TRANSPARENT=true&LAYERS=layer_340&WIDTH=256&HEIGHT=256&CRS=EPSG:3857&STYLES=&BBOX={bbox-epsg-3857}",
-              ],
-              tileSize: 256,
-              attribution:
-                "&copy; DSB - Direktoratet for samfunnssikkerhet og beredskap",
             },
             "geojson-source": {
               type: "geojson",
@@ -678,26 +799,56 @@ function MapPage() {
           },
           layers: [
             {
-              id: "openstreetmap-layer",
-              type: "raster",
-              source: "openstreetmap",
-              minzoom: 0,
-              maxzoom: 20,
-            },
-            {
-              id: "roads-layer",
-              type: "raster",
-              source: "roads-wms",
+              id: "background",
+              type: "background",
               paint: {
-                "raster-opacity": 0,
+                "background-color": "#1a1a1a",
               },
             },
             {
-              id: "dsb-layer",
-              type: "raster",
-              source: "dsb-wms",
+              id: "water",
+              type: "fill",
+              source: "vector-tiles",
+              "source-layer": "water",
               paint: {
-                "raster-opacity": 0, // blir bare brukt for å sjekke om punkter samsvaret mellom datasettene, sett til 1 for å se tilfluktsrom
+                "fill-color": "#222222",
+              },
+            },
+            {
+              id: "landcover",
+              type: "fill",
+              source: "vector-tiles",
+              "source-layer": "landcover",
+              paint: {
+                "fill-color": "#2a2a2a",
+              },
+            },
+            {
+              id: "roads",
+              type: "line",
+              source: "vector-tiles",
+              "source-layer": "transportation",
+              paint: {
+                "line-color": "#404040",
+                "line-width": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  10,
+                  1,
+                  15,
+                  2,
+                  20,
+                  4,
+                ],
+              },
+            },
+            {
+              id: "roads-wms-layer",
+              type: "raster",
+              source: "roads-wms",
+              paint: {
+                "raster-opacity": showRoads ? 1 : 0,
               },
             },
             {
@@ -1412,50 +1563,181 @@ function MapPage() {
         sx={{
           position: "absolute",
           left: "20px",
-          top: "13%",
-          transform: "translateY(-50%)",
-          zIndex: 1,
+          top: "110px",
+          zIndex: 2,
           backgroundColor: "rgba(38, 38, 38, 0.95)",
           color: "white",
-          padding: "11px",
+          padding: "8px",
           borderRadius: "12px",
           backdropFilter: "blur(8px)",
           border: "1px solid rgba(255, 255, 255, 0.1)",
           boxShadow: "0 4px 30px rgba(0, 0, 0, 0.1)",
+          cursor: "pointer",
+          transition: "all 0.3s ease",
+          "&:hover": {
+            backgroundColor: "rgba(58, 58, 58, 0.95)",
+          },
         }}
+        onClick={() => setShowControls(!showControls)}
       >
-        <FormControlLabel
-          control={
-            <Switch
-              checked={showPoliceStations}
-              onChange={(e) => setShowPoliceStations(e.target.checked)}
-              sx={{
-                "& .MuiSwitch-switchBase.Mui-checked": {
-                  color: "#0066ff",
-                  "&:hover": {
-                    backgroundColor: "rgba(0, 102, 255, 0.08)",
-                  },
-                },
-                "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
-                  backgroundColor: "#0066ff",
-                },
-              }}
-            />
-          }
-          label={
-            <Typography
-              sx={{
-                color: showPoliceStations
-                  ? "#0066ff"
-                  : "rgba(255, 255, 255, 0.7)",
-                transition: "color 0.3s ease",
-              }}
-            >
-              Vis politistasjoner
-            </Typography>
-          }
+        <FontAwesomeIcon
+          icon={showControls ? faXmark : faLayerGroup}
+          style={{
+            color: "#ffc400",
+            fontSize: "1.2rem",
+            transition: "transform 0.3s ease",
+            marginTop: "4px",
+          }}
         />
       </Card>
+
+      {/* Controls container */}
+      <Box
+        sx={{
+          position: "absolute",
+          left: "20px",
+          top: "160px",
+          zIndex: 1,
+          display: "flex",
+          flexDirection: "column",
+          gap: "10px",
+          transition: "opacity 0.3s ease, transform 0.3s ease",
+          opacity: showControls ? 1 : 0,
+          transform: showControls ? "translateX(0)" : "translateX(-20px)",
+          pointerEvents: showControls ? "auto" : "none",
+        }}
+      >
+        {/* Police stations toggle */}
+        <Card
+          sx={{
+            backgroundColor: "rgba(38, 38, 38, 0.95)",
+            color: "white",
+            padding: "11px",
+            borderRadius: "12px",
+            backdropFilter: "blur(8px)",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            boxShadow: "0 4px 30px rgba(0, 0, 0, 0.1)",
+          }}
+        >
+          <FormControlLabel
+            control={
+              <Switch
+                checked={showPoliceStations}
+                onChange={(e) => setShowPoliceStations(e.target.checked)}
+                sx={{
+                  "& .MuiSwitch-switchBase.Mui-checked": {
+                    color: "#0066ff",
+                    "&:hover": {
+                      backgroundColor: "rgba(0, 102, 255, 0.08)",
+                    },
+                  },
+                  "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+                    backgroundColor: "#0066ff",
+                  },
+                }}
+              />
+            }
+            label={
+              <FontAwesomeIcon
+                icon={faHandcuffs}
+                style={{
+                  color: showPoliceStations
+                    ? "#0066ff"
+                    : "rgba(255, 255, 255, 0.7)",
+                  transition: "color 0.3s ease",
+                  fontSize: "1.2rem",
+                }}
+              />
+            }
+          />
+        </Card>
+
+        {/* 3D Mode toggle */}
+        <Card
+          sx={{
+            backgroundColor: "rgba(38, 38, 38, 0.95)",
+            color: "white",
+            padding: "11px",
+            borderRadius: "12px",
+            backdropFilter: "blur(8px)",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            boxShadow: "0 4px 30px rgba(0, 0, 0, 0.1)",
+          }}
+        >
+          <FormControlLabel
+            control={
+              <Switch
+                checked={is3DMode}
+                onChange={(e) => setIs3DMode(e.target.checked)}
+                sx={{
+                  "& .MuiSwitch-switchBase.Mui-checked": {
+                    color: "#4caf50",
+                    "&:hover": {
+                      backgroundColor: "rgba(76, 175, 80, 0.08)",
+                    },
+                  },
+                  "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+                    backgroundColor: "#4caf50",
+                  },
+                }}
+              />
+            }
+            label={
+              <FontAwesomeIcon
+                icon={faCube}
+                style={{
+                  color: is3DMode ? "#4caf50" : "rgba(255, 255, 255, 0.7)",
+                  transition: "color 0.3s ease",
+                  fontSize: "1.2rem",
+                }}
+              />
+            }
+          />
+        </Card>
+
+        {/* Roads toggle */}
+        <Card
+          sx={{
+            backgroundColor: "rgba(38, 38, 38, 0.95)",
+            color: "white",
+            padding: "11px",
+            borderRadius: "12px",
+            backdropFilter: "blur(8px)",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            boxShadow: "0 4px 30px rgba(0, 0, 0, 0.1)",
+          }}
+        >
+          <FormControlLabel
+            control={
+              <Switch
+                checked={showRoads}
+                onChange={(e) => setShowRoads(e.target.checked)}
+                sx={{
+                  "& .MuiSwitch-switchBase.Mui-checked": {
+                    color: "#ff9800",
+                    "&:hover": {
+                      backgroundColor: "rgba(255, 152, 0, 0.08)",
+                    },
+                  },
+                  "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+                    backgroundColor: "#ff9800",
+                  },
+                }}
+              />
+            }
+            label={
+              <FontAwesomeIcon
+                icon={faRoad}
+                style={{
+                  color: showRoads ? "#ff9800" : "rgba(255, 255, 255, 0.7)",
+                  transition: "color 0.3s ease",
+                  fontSize: "1.2rem",
+                }}
+              />
+            }
+          />
+        </Card>
+      </Box>
     </div>
   );
 }
