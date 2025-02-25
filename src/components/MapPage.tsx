@@ -157,6 +157,9 @@ function MapPage() {
   const [is3DMode, setIs3DMode] = useState(false);
   const [showRoads, setShowRoads] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  const initialRouteSet = useRef(false);
+  const routeInitialized = useRef(false);
+  const styleDataTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Add this utility function to handle 3D buildings
   const handle3DBuildings = useCallback((map: MaplibreMap, show: boolean) => {
@@ -373,7 +376,7 @@ function MapPage() {
   // Use effect to find closest shelter and get route
   useEffect(() => {
     const map = mapRef.current;
-    if (userLocation && geoJSONData && map) {
+    if (userLocation && geoJSONData && map && !initialRouteSet.current) {
       // Find the closest shelter
       const closestShelter = findClosestShelter(
         userLocation[1],
@@ -413,9 +416,12 @@ function MapPage() {
         const bounds = new LngLatBounds().extend(userLocation).extend(coords);
 
         map.fitBounds(bounds, {
-          padding: { top: 150, bottom: 150, left: 150, right: 150 },
+          padding: { top: 300, bottom: 300, left: 300, right: 300 },
           duration: 1000,
         });
+
+        // Set the flag to prevent further initial route calculations
+        initialRouteSet.current = true;
       } else {
         setDistanceToShelter(null);
       }
@@ -474,16 +480,8 @@ function MapPage() {
           setWalkTime(`${Math.round(walkTimeMinutes)}`);
           console.log("Walk time:", walkTimeMinutes);
 
-          // Get route
+          // Get route without bounds fitting
           getRoute(userLocation[0], userLocation[1], coords[0], coords[1]);
-
-          // Fit bounds to show both points
-          const bounds = new LngLatBounds().extend(userLocation).extend(coords);
-
-          map.fitBounds(bounds, {
-            padding: { top: 150, bottom: 150, left: 150, right: 150 },
-            duration: 1000,
-          });
         } else {
           console.log("No user location available");
         }
@@ -639,38 +637,73 @@ function MapPage() {
     const map = mapRef.current;
     if (!map || !routeData || !mapLoaded) return;
 
-    if (map.getSource("route")) {
-      (map.getSource("route") as maplibregl.GeoJSONSource).setData({
-        type: "Feature",
-        properties: {},
-        geometry: routeData,
-      });
-    } else {
-      map.addSource("route", {
-        type: "geojson",
-        data: {
+    const addOrUpdateRoute = () => {
+      if (map.getSource("route")) {
+        (map.getSource("route") as maplibregl.GeoJSONSource).setData({
           type: "Feature",
           properties: {},
           geometry: routeData,
-        },
-      });
+        });
+      } else {
+        map.addSource("route", {
+          type: "geojson",
+          data: {
+            type: "Feature",
+            properties: {},
+            geometry: routeData,
+          },
+        });
 
-      map.addLayer({
-        id: "route",
-        type: "line",
-        source: "route",
-        layout: {
-          "line-join": "round",
-          "line-cap": "round",
-        },
-        paint: {
-          "line-color": "#3887be",
-          "line-width": 5,
-          "line-opacity": 0.75,
-        },
-      });
-    }
-  }, [routeData, mapLoaded]);
+        map.addLayer({
+          id: "route",
+          type: "line",
+          source: "route",
+          layout: {
+            "line-join": "round",
+            "line-cap": "round",
+            visibility: "visible",
+          },
+          paint: {
+            "line-color": "#3887be",
+            "line-width": 5,
+            "line-opacity": 0.75,
+          },
+        });
+        routeInitialized.current = true;
+      }
+    };
+
+    // Add the route
+    addOrUpdateRoute();
+
+    // Set up a listener for style loading to re-add the route if needed
+    const handleStyleData = () => {
+      if (routeInitialized.current && !map.getSource("route")) {
+        addOrUpdateRoute();
+      }
+
+      // Re-apply 3D mode if it's enabled
+      if (is3DMode) {
+        // Clear existing timeout
+        if (styleDataTimeoutRef.current) {
+          clearTimeout(styleDataTimeoutRef.current);
+        }
+        // Set new timeout
+        styleDataTimeoutRef.current = setTimeout(() => {
+          handle3DBuildings(map, true);
+        }, 100);
+      }
+    };
+
+    map.on("styledata", handleStyleData);
+
+    return () => {
+      if (styleDataTimeoutRef.current) {
+        clearTimeout(styleDataTimeoutRef.current);
+      }
+      map.off("styledata", handleStyleData);
+    };
+  }, [routeData, mapLoaded, is3DMode, handle3DBuildings]);
 
   useEffect(() => {
     const map = mapRef.current;
