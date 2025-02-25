@@ -755,13 +755,9 @@ function MapPage() {
         mapStyle={{
           version: 8,
           sources: {
-            openstreetmap: {
-              type: "raster",
-              tiles: [
-                "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-              ],
-              tileSize: 256,
-              attribution: "&copy; openstreetmap",
+            "vector-tiles": {
+              type: "vector",
+              url: "https://api.maptiler.com/tiles/v3/tiles.json?key=eE87Cs6ofbIAP2G5mFFy",
             },
             "roads-wms": {
               type: "raster",
@@ -770,15 +766,6 @@ function MapPage() {
               ],
               tileSize: 256,
               attribution: "&copy; Geonorge - Vegnett",
-            },
-            "dsb-wms": {
-              type: "raster",
-              tiles: [
-                "https://ogc.dsb.no/wms.ashx?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&FORMAT=image/png&TRANSPARENT=true&LAYERS=layer_340&WIDTH=256&HEIGHT=256&CRS=EPSG:3857&STYLES=&BBOX={bbox-epsg-3857}",
-              ],
-              tileSize: 256,
-              attribution:
-                "&copy; DSB - Direktoratet for samfunnssikkerhet og beredskap",
             },
             "geojson-source": {
               type: "geojson",
@@ -808,26 +795,56 @@ function MapPage() {
           },
           layers: [
             {
-              id: "openstreetmap-layer",
-              type: "raster",
-              source: "openstreetmap",
-              minzoom: 0,
-              maxzoom: 20,
+              id: "background",
+              type: "background",
+              paint: {
+                "background-color": "#1a1a1a",
+              },
             },
             {
-              id: "roads-layer",
+              id: "water",
+              type: "fill",
+              source: "vector-tiles",
+              "source-layer": "water",
+              paint: {
+                "fill-color": "#222222",
+              },
+            },
+            {
+              id: "landcover",
+              type: "fill",
+              source: "vector-tiles",
+              "source-layer": "landcover",
+              paint: {
+                "fill-color": "#2a2a2a",
+              },
+            },
+            {
+              id: "roads",
+              type: "line",
+              source: "vector-tiles",
+              "source-layer": "transportation",
+              paint: {
+                "line-color": "#404040",
+                "line-width": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  10,
+                  1,
+                  15,
+                  2,
+                  20,
+                  4,
+                ],
+              },
+            },
+            {
+              id: "roads-wms-layer",
               type: "raster",
               source: "roads-wms",
               paint: {
                 "raster-opacity": showRoads ? 1 : 0,
-              },
-            },
-            {
-              id: "dsb-layer",
-              type: "raster",
-              source: "dsb-wms",
-              paint: {
-                "raster-opacity": 0, // blir bare brukt for å sjekke om punkter samsvaret mellom datasettene, sett til 1 for å se tilfluktsrom
               },
             },
             {
