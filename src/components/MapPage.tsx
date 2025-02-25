@@ -19,7 +19,14 @@ import type {
   FillExtrusionLayerSpecification,
   ExpressionSpecification,
 } from "maplibre-gl";
-import { faRadiation, faHandcuffs } from "@fortawesome/free-solid-svg-icons";
+import {
+  faRadiation,
+  faHandcuffs,
+  faRoad,
+  faCube,
+  faLayerGroup,
+  faXmark,
+} from "@fortawesome/free-solid-svg-icons";
 import { library } from "@fortawesome/fontawesome-svg-core";
 import { Card, Typography, Box, Switch, FormControlLabel } from "@mui/material";
 import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
@@ -28,6 +35,7 @@ import HomeIcon from "@mui/icons-material/Home";
 import PeopleIcon from "@mui/icons-material/People";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import CloseIcon from "@mui/icons-material/Close";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import "./MapPage.css"; // Add this import at the top
 import type {
   FeatureCollection,
@@ -131,7 +139,7 @@ const fetchGeoJSONData = async () => {
 };
 
 // Add icon to library
-library.add(faRadiation, faHandcuffs);
+library.add(faRadiation, faHandcuffs, faRoad, faCube, faLayerGroup, faXmark);
 
 function MapPage() {
   const [policeStations, setPoliceStations] = useState<PoliceStation[]>([]);
@@ -162,6 +170,8 @@ function MapPage() {
     useState<PoliceStation | null>(null);
   const [showPoliceStations, setShowPoliceStations] = useState(false);
   const [is3DMode, setIs3DMode] = useState(false);
+  const [showRoads, setShowRoads] = useState(false);
+  const [showControls, setShowControls] = useState(true);
 
   // Fetch data effect
   useEffect(() => {
@@ -823,7 +833,7 @@ function MapPage() {
               type: "raster",
               source: "roads-wms",
               paint: {
-                "raster-opacity": 0,
+                "raster-opacity": showRoads ? 1 : 0,
               },
             },
             {
@@ -1546,96 +1556,180 @@ function MapPage() {
         sx={{
           position: "absolute",
           left: "20px",
-          top: "13%",
-          transform: "translateY(-50%)",
-          zIndex: 1,
+          top: "110px",
+          zIndex: 2,
           backgroundColor: "rgba(38, 38, 38, 0.95)",
           color: "white",
-          padding: "11px",
+          padding: "8px",
           borderRadius: "12px",
           backdropFilter: "blur(8px)",
           border: "1px solid rgba(255, 255, 255, 0.1)",
           boxShadow: "0 4px 30px rgba(0, 0, 0, 0.1)",
+          cursor: "pointer",
+          transition: "all 0.3s ease",
+          "&:hover": {
+            backgroundColor: "rgba(58, 58, 58, 0.95)",
+          },
         }}
+        onClick={() => setShowControls(!showControls)}
       >
-        <FormControlLabel
-          control={
-            <Switch
-              checked={showPoliceStations}
-              onChange={(e) => setShowPoliceStations(e.target.checked)}
-              sx={{
-                "& .MuiSwitch-switchBase.Mui-checked": {
-                  color: "#0066ff",
-                  "&:hover": {
-                    backgroundColor: "rgba(0, 102, 255, 0.08)",
-                  },
-                },
-                "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
-                  backgroundColor: "#0066ff",
-                },
-              }}
-            />
-          }
-          label={
-            <Typography
-              sx={{
-                color: showPoliceStations
-                  ? "#0066ff"
-                  : "rgba(255, 255, 255, 0.7)",
-                transition: "color 0.3s ease",
-              }}
-            >
-              Vis politistasjoner
-            </Typography>
-          }
+        <FontAwesomeIcon
+          icon={showControls ? faXmark : faLayerGroup}
+          style={{
+            color: "#ffc400",
+            fontSize: "1.2rem",
+            transition: "transform 0.3s ease",
+          }}
         />
       </Card>
-      <Card
+
+      {/* Controls container */}
+      <Box
         sx={{
           position: "absolute",
           left: "20px",
-          top: "20%", // Position below police stations toggle
-          transform: "translateY(-50%)",
+          top: "160px",
           zIndex: 1,
-          backgroundColor: "rgba(38, 38, 38, 0.95)",
-          color: "white",
-          padding: "11px",
-          borderRadius: "12px",
-          backdropFilter: "blur(8px)",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
-          boxShadow: "0 4px 30px rgba(0, 0, 0, 0.1)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "10px",
+          transition: "opacity 0.3s ease, transform 0.3s ease",
+          opacity: showControls ? 1 : 0,
+          transform: showControls ? "translateX(0)" : "translateX(-20px)",
+          pointerEvents: showControls ? "auto" : "none",
         }}
       >
-        <FormControlLabel
-          control={
-            <Switch
-              checked={is3DMode}
-              onChange={(e) => setIs3DMode(e.target.checked)}
-              sx={{
-                "& .MuiSwitch-switchBase.Mui-checked": {
-                  color: "#4caf50",
-                  "&:hover": {
-                    backgroundColor: "rgba(76, 175, 80, 0.08)",
+        {/* Police stations toggle */}
+        <Card
+          sx={{
+            backgroundColor: "rgba(38, 38, 38, 0.95)",
+            color: "white",
+            padding: "11px",
+            borderRadius: "12px",
+            backdropFilter: "blur(8px)",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            boxShadow: "0 4px 30px rgba(0, 0, 0, 0.1)",
+          }}
+        >
+          <FormControlLabel
+            control={
+              <Switch
+                checked={showPoliceStations}
+                onChange={(e) => setShowPoliceStations(e.target.checked)}
+                sx={{
+                  "& .MuiSwitch-switchBase.Mui-checked": {
+                    color: "#0066ff",
+                    "&:hover": {
+                      backgroundColor: "rgba(0, 102, 255, 0.08)",
+                    },
                   },
-                },
-                "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
-                  backgroundColor: "#4caf50",
-                },
-              }}
-            />
-          }
-          label={
-            <Typography
-              sx={{
-                color: is3DMode ? "#4caf50" : "rgba(255, 255, 255, 0.7)",
-                transition: "color 0.3s ease",
-              }}
-            >
-              3D Kart
-            </Typography>
-          }
-        />
-      </Card>
+                  "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+                    backgroundColor: "#0066ff",
+                  },
+                }}
+              />
+            }
+            label={
+              <FontAwesomeIcon
+                icon={faHandcuffs}
+                style={{
+                  color: showPoliceStations
+                    ? "#0066ff"
+                    : "rgba(255, 255, 255, 0.7)",
+                  transition: "color 0.3s ease",
+                  fontSize: "1.2rem",
+                }}
+              />
+            }
+          />
+        </Card>
+
+        {/* 3D Mode toggle */}
+        <Card
+          sx={{
+            backgroundColor: "rgba(38, 38, 38, 0.95)",
+            color: "white",
+            padding: "11px",
+            borderRadius: "12px",
+            backdropFilter: "blur(8px)",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            boxShadow: "0 4px 30px rgba(0, 0, 0, 0.1)",
+          }}
+        >
+          <FormControlLabel
+            control={
+              <Switch
+                checked={is3DMode}
+                onChange={(e) => setIs3DMode(e.target.checked)}
+                sx={{
+                  "& .MuiSwitch-switchBase.Mui-checked": {
+                    color: "#4caf50",
+                    "&:hover": {
+                      backgroundColor: "rgba(76, 175, 80, 0.08)",
+                    },
+                  },
+                  "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+                    backgroundColor: "#4caf50",
+                  },
+                }}
+              />
+            }
+            label={
+              <FontAwesomeIcon
+                icon={faCube}
+                style={{
+                  color: is3DMode ? "#4caf50" : "rgba(255, 255, 255, 0.7)",
+                  transition: "color 0.3s ease",
+                  fontSize: "1.2rem",
+                }}
+              />
+            }
+          />
+        </Card>
+
+        {/* Roads toggle */}
+        <Card
+          sx={{
+            backgroundColor: "rgba(38, 38, 38, 0.95)",
+            color: "white",
+            padding: "11px",
+            borderRadius: "12px",
+            backdropFilter: "blur(8px)",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            boxShadow: "0 4px 30px rgba(0, 0, 0, 0.1)",
+          }}
+        >
+          <FormControlLabel
+            control={
+              <Switch
+                checked={showRoads}
+                onChange={(e) => setShowRoads(e.target.checked)}
+                sx={{
+                  "& .MuiSwitch-switchBase.Mui-checked": {
+                    color: "#ff9800",
+                    "&:hover": {
+                      backgroundColor: "rgba(255, 152, 0, 0.08)",
+                    },
+                  },
+                  "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+                    backgroundColor: "#ff9800",
+                  },
+                }}
+              />
+            }
+            label={
+              <FontAwesomeIcon
+                icon={faRoad}
+                style={{
+                  color: showRoads ? "#ff9800" : "rgba(255, 255, 255, 0.7)",
+                  transition: "color 0.3s ease",
+                  fontSize: "1.2rem",
+                }}
+              />
+            }
+          />
+        </Card>
+      </Box>
     </div>
   );
 }
