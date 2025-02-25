@@ -484,14 +484,13 @@ function MapPage() {
           setWalkTime(`${Math.round(walkTimeMinutes)}`);
           console.log("Walk time:", walkTimeMinutes);
 
-          // Get route without bounds fitting
           getRoute(userLocation[0], userLocation[1], coords[0], coords[1]);
           // Fit bounds to show both points
           const bounds = new LngLatBounds().extend(userLocation).extend(coords);
 
           map.fitBounds(bounds, {
             padding: { top: 200, bottom: 200, left: 200, right: 200 },
-            duration: 1000,
+            duration: 1200,
           });
         } else {
           console.log("No user location available");
@@ -789,9 +788,9 @@ function MapPage() {
           mapRef.current = ref?.getMap() ?? null;
         }}
         initialViewState={{
-          longitude: 8.5, // Adjusted to center of Norway
-          latitude: 64,
-          zoom: 4,
+          longitude: 10.7522, // Adjusted to center of Norway
+          latitude: 59.9139,
+          zoom: 5,
           pitch: is3DMode ? 45 : 0,
           bearing: 0,
         }}
