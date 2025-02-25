@@ -788,8 +788,8 @@ function MapPage() {
           mapRef.current = ref?.getMap() ?? null;
         }}
         initialViewState={{
-          longitude: 10.7522, // Adjusted to center of Norway
-          latitude: 59.9139,
+          longitude: 8.5,
+          latitude: 61.5, 
           zoom: 5,
           pitch: is3DMode ? 45 : 0,
           bearing: 0,
