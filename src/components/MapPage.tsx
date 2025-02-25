@@ -156,7 +156,7 @@ function MapPage() {
   const [showPoliceStations, setShowPoliceStations] = useState(false);
   const [is3DMode, setIs3DMode] = useState(false);
   const [showRoads, setShowRoads] = useState(false);
-  const [showControls, setShowControls] = useState(true);
+  const [showControls, setShowControls] = useState(false);
 
   // Add this utility function to handle 3D buildings
   const handle3DBuildings = useCallback((map: MaplibreMap, show: boolean) => {
@@ -409,12 +409,16 @@ function MapPage() {
         // Get the route
         getRoute(userLocation[0], userLocation[1], coords[0], coords[1]);
 
-        // Fit bounds to show both points
-        const bounds = new LngLatBounds().extend(userLocation).extend(coords);
+        // Calculate center point between user and shelter
+        const centerLng = (userLocation[0] + coords[0]) / 2;
+        const centerLat = (userLocation[1] + coords[1]) / 2;
 
-        map.fitBounds(bounds, {
-          padding: { top: 150, bottom: 150, left: 150, right: 150 },
-          duration: 1000,
+        // Fly to the center point with appropriate zoom level
+        map.flyTo({
+          center: [centerLng, centerLat],
+          zoom: 14,
+          duration: 2000,
+          essential: true,
         });
       } else {
         setDistanceToShelter(null);
@@ -481,7 +485,7 @@ function MapPage() {
           const bounds = new LngLatBounds().extend(userLocation).extend(coords);
 
           map.fitBounds(bounds, {
-            padding: { top: 150, bottom: 150, left: 150, right: 150 },
+            padding: { top: 200, bottom: 200, left: 200, right: 200 },
             duration: 1000,
           });
         } else {
@@ -745,9 +749,9 @@ function MapPage() {
           mapRef.current = ref?.getMap() ?? null;
         }}
         initialViewState={{
-          longitude: 10.7522, // Adjusted to center of Norway
-          latitude: 59.9139,
-          zoom: 5,
+          longitude: 8.5, // Adjusted to center of Norway
+          latitude: 64,
+          zoom: 4,
           pitch: is3DMode ? 45 : 0,
           bearing: 0,
         }}
