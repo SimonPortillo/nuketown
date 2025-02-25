@@ -16,7 +16,6 @@ import type {
   MapGeoJSONFeature,
   Map as MaplibreMap,
   FillExtrusionLayerSpecification,
-  ExpressionSpecification,
 } from "maplibre-gl";
 import {
   faRadiation,
