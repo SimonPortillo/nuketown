@@ -12,8 +12,13 @@ import { LngLatBounds } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { createClient } from "@supabase/supabase-js";
 import proj4 from "proj4";
-import type { MapGeoJSONFeature } from "maplibre-gl";
-import type { Map as MaplibreMap } from "maplibre-gl";
+import type {
+  MapGeoJSONFeature,
+  Map as MaplibreMap,
+  LayerSpecification,
+  FillExtrusionLayerSpecification,
+  ExpressionSpecification,
+} from "maplibre-gl";
 import { faRadiation, faHandcuffs } from "@fortawesome/free-solid-svg-icons";
 import { library } from "@fortawesome/fontawesome-svg-core";
 import { Card, Typography, Box, Switch, FormControlLabel } from "@mui/material";
@@ -30,6 +35,19 @@ import type {
   GeoJsonProperties,
   Point,
 } from "geojson";
+
+type BuildingLayer = LayerSpecification & {
+  id: string;
+  type: "fill-extrusion";
+  source: string;
+  "source-layer": string;
+  paint: {
+    "fill-extrusion-color": any;
+    "fill-extrusion-height": any;
+    "fill-extrusion-base": any;
+    "fill-extrusion-opacity": number;
+  };
+};
 
 const supabaseUrl = import.meta.env.VITE_REACT_APP_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_REACT_APP_SUPABASE_KEY;
@@ -143,6 +161,7 @@ function MapPage() {
   const [selectedPoliceStation, setSelectedPoliceStation] =
     useState<PoliceStation | null>(null);
   const [showPoliceStations, setShowPoliceStations] = useState(false);
+  const [is3DMode, setIs3DMode] = useState(false);
 
   // Fetch data effect
   useEffect(() => {
@@ -602,6 +621,119 @@ function MapPage() {
     };
   }, [mapLoaded]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+
+    if (is3DMode) {
+      map.easeTo({
+        pitch: 45,
+        bearing: 0,
+        duration: 1000,
+      });
+    } else {
+      map.easeTo({
+        pitch: 0,
+        bearing: 0,
+        duration: 1000,
+      });
+    }
+  }, [is3DMode, mapLoaded]);
+
+  // Add new useEffect for handling 3D buildings
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+
+    // Only proceed if we're in 3D mode and haven't added the buildings layer yet
+    if (is3DMode && !map.getSource("openmaptiles")) {
+      map.addSource("openmaptiles", {
+        url: `https://api.maptiler.com/tiles/v3/tiles.json?key=eE87Cs6ofbIAP2G5mFFy`,
+        type: "vector",
+      });
+
+      // Find the first symbol layer
+      const layers = map.getStyle().layers || [];
+      let labelLayerId: string | undefined;
+
+      for (const layer of layers) {
+        if (
+          layer.type === "symbol" &&
+          layer.layout &&
+          "text-field" in layer.layout
+        ) {
+          labelLayerId = layer.id;
+          break;
+        }
+      }
+
+      const buildingLayer: FillExtrusionLayerSpecification = {
+        id: "3d-buildings",
+        type: "fill-extrusion",
+        source: "openmaptiles",
+        "source-layer": "building",
+        minzoom: 15,
+        filter: ["!=", ["get", "hide_3d"], true],
+        paint: {
+          "fill-extrusion-color": [
+            "interpolate",
+            ["linear"],
+            ["get", "render_height"],
+            0,
+            "#141414",
+            50,
+            "#0d0900",
+            400,
+            "lightblue",
+          ] as ExpressionSpecification,
+          "fill-extrusion-height": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            15,
+            0,
+            16,
+            ["get", "render_height"],
+          ] as ExpressionSpecification,
+          "fill-extrusion-base": [
+            "case",
+            [">=", ["get", "zoom"], 16],
+            ["get", "render_min_height"],
+            0,
+          ] as ExpressionSpecification,
+          "fill-extrusion-opacity": 0.8,
+        },
+      };
+
+      map.addLayer(buildingLayer, labelLayerId);
+    }
+
+    // Update building layer visibility based on 3D mode
+    const buildingLayer = map.getLayer("3d-buildings");
+    if (buildingLayer) {
+      map.setLayoutProperty(
+        "3d-buildings",
+        "visibility",
+        is3DMode ? "visible" : "none"
+      );
+    }
+
+    // Update map pitch and bearing for 3D effect
+    if (is3DMode) {
+      map.easeTo({
+        pitch: 45,
+        bearing: -17.6,
+        duration: 1000,
+      });
+    } else {
+      map.easeTo({
+        pitch: 0,
+        bearing: 0,
+        duration: 1000,
+      });
+    }
+  }, [is3DMode, mapLoaded]);
+
   return (
     <div
       style={{
@@ -620,6 +752,8 @@ function MapPage() {
           longitude: 10.7522, // Adjusted to center of Norway
           latitude: 59.9139,
           zoom: 5,
+          pitch: is3DMode ? 45 : 0,
+          bearing: 0,
         }}
         style={{ width: "100%", height: "100%" }}
         mapStyle={{
@@ -1452,6 +1586,52 @@ function MapPage() {
               }}
             >
               Vis politistasjoner
+            </Typography>
+          }
+        />
+      </Card>
+      <Card
+        sx={{
+          position: "absolute",
+          left: "20px",
+          top: "20%", // Position below police stations toggle
+          transform: "translateY(-50%)",
+          zIndex: 1,
+          backgroundColor: "rgba(38, 38, 38, 0.95)",
+          color: "white",
+          padding: "11px",
+          borderRadius: "12px",
+          backdropFilter: "blur(8px)",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
+          boxShadow: "0 4px 30px rgba(0, 0, 0, 0.1)",
+        }}
+      >
+        <FormControlLabel
+          control={
+            <Switch
+              checked={is3DMode}
+              onChange={(e) => setIs3DMode(e.target.checked)}
+              sx={{
+                "& .MuiSwitch-switchBase.Mui-checked": {
+                  color: "#4caf50",
+                  "&:hover": {
+                    backgroundColor: "rgba(76, 175, 80, 0.08)",
+                  },
+                },
+                "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+                  backgroundColor: "#4caf50",
+                },
+              }}
+            />
+          }
+          label={
+            <Typography
+              sx={{
+                color: is3DMode ? "#4caf50" : "rgba(255, 255, 255, 0.7)",
+                transition: "color 0.3s ease",
+              }}
+            >
+              3D Kart
             </Typography>
           }
         />
