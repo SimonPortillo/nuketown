@@ -15,7 +15,6 @@ import proj4 from "proj4";
 import type {
   MapGeoJSONFeature,
   Map as MaplibreMap,
-  LayerSpecification,
   FillExtrusionLayerSpecification,
   ExpressionSpecification,
 } from "maplibre-gl";
@@ -43,19 +42,6 @@ import type {
   GeoJsonProperties,
   Point,
 } from "geojson";
-
-type BuildingLayer = LayerSpecification & {
-  id: string;
-  type: "fill-extrusion";
-  source: string;
-  "source-layer": string;
-  paint: {
-    "fill-extrusion-color": any;
-    "fill-extrusion-height": any;
-    "fill-extrusion-base": any;
-    "fill-extrusion-opacity": number;
-  };
-};
 
 const supabaseUrl = import.meta.env.VITE_REACT_APP_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_REACT_APP_SUPABASE_KEY;
@@ -172,6 +158,100 @@ function MapPage() {
   const [is3DMode, setIs3DMode] = useState(false);
   const [showRoads, setShowRoads] = useState(false);
   const [showControls, setShowControls] = useState(true);
+
+  // Add this utility function to handle 3D buildings
+  const handle3DBuildings = useCallback((map: MaplibreMap, show: boolean) => {
+    if (!map) return;
+
+    // Check if we need to add the source
+    if (show && !map.getSource("openmaptiles")) {
+      map.addSource("openmaptiles", {
+        url: `https://api.maptiler.com/tiles/v3/tiles.json?key=eE87Cs6ofbIAP2G5mFFy`,
+        type: "vector",
+      });
+    }
+
+    // Check if the layer exists
+    const buildingLayer = map.getLayer("3d-buildings");
+
+    if (show && !buildingLayer) {
+      // Find the first symbol layer
+      const layers = map.getStyle().layers || [];
+      let labelLayerId: string | undefined;
+
+      for (const layer of layers) {
+        if (
+          layer.type === "symbol" &&
+          layer.layout &&
+          "text-field" in layer.layout
+        ) {
+          labelLayerId = layer.id;
+          break;
+        }
+      }
+
+      const newBuildingLayer: FillExtrusionLayerSpecification = {
+        id: "3d-buildings",
+        type: "fill-extrusion",
+        source: "openmaptiles",
+        "source-layer": "building",
+        minzoom: 15,
+        filter: ["!=", ["get", "hide_3d"], true],
+        paint: {
+          "fill-extrusion-color": [
+            "interpolate",
+            ["linear"],
+            ["get", "render_height"],
+            0,
+            "#141414",
+            50,
+            "#0d0900",
+            400,
+            "lightblue",
+          ],
+          "fill-extrusion-height": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            15,
+            0,
+            16,
+            ["get", "render_height"],
+          ],
+          "fill-extrusion-base": [
+            "case",
+            [">=", ["get", "zoom"], 16],
+            ["get", "render_min_height"],
+            0,
+          ],
+          "fill-extrusion-opacity": 0.8,
+        },
+      };
+
+      map.addLayer(newBuildingLayer, labelLayerId);
+    } else if (buildingLayer) {
+      map.setLayoutProperty(
+        "3d-buildings",
+        "visibility",
+        show ? "visible" : "none"
+      );
+    }
+
+    // Update map pitch and bearing
+    if (show) {
+      map.easeTo({
+        pitch: 45,
+        bearing: -17.6,
+        duration: 1000,
+      });
+    } else {
+      map.easeTo({
+        pitch: 0,
+        bearing: 0,
+        duration: 1000,
+      });
+    }
+  }, []);
 
   // Fetch data effect
   useEffect(() => {
@@ -631,118 +711,25 @@ function MapPage() {
     };
   }, [mapLoaded]);
 
+  // Update the is3DMode effect to use the new handler
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
+    handle3DBuildings(map, is3DMode);
+  }, [is3DMode, mapLoaded, handle3DBuildings]);
 
-    if (is3DMode) {
-      map.easeTo({
-        pitch: 45,
-        bearing: 0,
-        duration: 1000,
-      });
-    } else {
-      map.easeTo({
-        pitch: 0,
-        bearing: 0,
-        duration: 1000,
-      });
-    }
-  }, [is3DMode, mapLoaded]);
-
-  // Add new useEffect for handling 3D buildings
+  // Add this effect to maintain 3D buildings when other style changes occur
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !mapLoaded) return;
+    if (!map || !mapLoaded || !is3DMode) return;
 
-    // Only proceed if we're in 3D mode and haven't added the buildings layer yet
-    if (is3DMode && !map.getSource("openmaptiles")) {
-      map.addSource("openmaptiles", {
-        url: `https://api.maptiler.com/tiles/v3/tiles.json?key=eE87Cs6ofbIAP2G5mFFy`,
-        type: "vector",
-      });
+    // Short timeout to ensure the style has finished updating
+    const timeoutId = setTimeout(() => {
+      handle3DBuildings(map, true);
+    }, 100);
 
-      // Find the first symbol layer
-      const layers = map.getStyle().layers || [];
-      let labelLayerId: string | undefined;
-
-      for (const layer of layers) {
-        if (
-          layer.type === "symbol" &&
-          layer.layout &&
-          "text-field" in layer.layout
-        ) {
-          labelLayerId = layer.id;
-          break;
-        }
-      }
-
-      const buildingLayer: FillExtrusionLayerSpecification = {
-        id: "3d-buildings",
-        type: "fill-extrusion",
-        source: "openmaptiles",
-        "source-layer": "building",
-        minzoom: 15,
-        filter: ["!=", ["get", "hide_3d"], true],
-        paint: {
-          "fill-extrusion-color": [
-            "interpolate",
-            ["linear"],
-            ["get", "render_height"],
-            0,
-            "#141414",
-            50,
-            "#0d0900",
-            400,
-            "lightblue",
-          ] as ExpressionSpecification,
-          "fill-extrusion-height": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            15,
-            0,
-            16,
-            ["get", "render_height"],
-          ] as ExpressionSpecification,
-          "fill-extrusion-base": [
-            "case",
-            [">=", ["get", "zoom"], 16],
-            ["get", "render_min_height"],
-            0,
-          ] as ExpressionSpecification,
-          "fill-extrusion-opacity": 0.8,
-        },
-      };
-
-      map.addLayer(buildingLayer, labelLayerId);
-    }
-
-    // Update building layer visibility based on 3D mode
-    const buildingLayer = map.getLayer("3d-buildings");
-    if (buildingLayer) {
-      map.setLayoutProperty(
-        "3d-buildings",
-        "visibility",
-        is3DMode ? "visible" : "none"
-      );
-    }
-
-    // Update map pitch and bearing for 3D effect
-    if (is3DMode) {
-      map.easeTo({
-        pitch: 45,
-        bearing: -17.6,
-        duration: 1000,
-      });
-    } else {
-      map.easeTo({
-        pitch: 0,
-        bearing: 0,
-        duration: 1000,
-      });
-    }
-  }, [is3DMode, mapLoaded]);
+    return () => clearTimeout(timeoutId);
+  }, [showPoliceStations, showRoads, mapLoaded, handle3DBuildings, is3DMode]);
 
   return (
     <div
@@ -1579,6 +1566,7 @@ function MapPage() {
             color: "#ffc400",
             fontSize: "1.2rem",
             transition: "transform 0.3s ease",
+            marginTop: "4px",
           }}
         />
       </Card>
