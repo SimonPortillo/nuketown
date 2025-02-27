@@ -89,6 +89,15 @@ Applikasjonen implementerer en fullstack-løsning hvor:
 [LIVE DEMO](https://nuketown-one.vercel.app/)
 
 ## Forhåndsvisning
+Landningsside
 ![cfcc670e76b17458a62295e328cd9446](https://github.com/user-attachments/assets/2e735c85-1f8d-4954-ad0d-2b27acb0629b)
+2D-Kart
 ![a4126ebe9ccca691abdffc7c72c3c70b](https://github.com/user-attachments/assets/85a17fd6-1db7-4524-8263-0391524574b8)
+3D-Kart
+![d33434c50d780f586b7a3ff7e3d76859](https://github.com/user-attachments/assets/889c7364-b64d-4806-a674-9ee55d28b026)
+Veinett aktivert
+![ea1cbc6b3a868a7a66ae1334774e37f4](https://github.com/user-attachments/assets/1a78091a-8f69-40c2-b529-1ac3d1457d71)
+
+
+
 
