@@ -1,34 +1,94 @@
-# NukeTown Tilfluktsromfinner
+# Nuketown - Beredskapskart for Norge
 
-NukeTown Tilfluktsromfinner er en React-applikasjon designet for å hjelpe brukere med å finne nærmeste nødhusly i tilfelle en atomnødsituasjon. Appen bruker din GPS-posisjon for raskt å veilede deg til sikkerhet.
+## Om Prosjektet
+Nuketown er en interaktiv kartapplikasjon for beredskap som hjelper brukere med å lokalisere og navigere til kritisk infrastruktur under nødsituasjoner. Applikasjonen visualiserer tilfluktsrom, politistasjoner og sykehus i Norge, og gir viktig informasjon om kapasitet, befolkningsdekning og ruteplanlegging.
 
-## Teknologi
+## Funksjoner
+- 🚨 **Tilfluktsrom**: Viser lokasjon og kapasitetsinformasjon med befolkningsanalyse
+- 👮 **Politistasjoner**: Viser politistasjoners plassering med kontaktinformasjon
+- 🏥 **Sykehus**: Visualiserer sykehusplasseringer med akuttjenesteinformasjon
+- 🗺️ **Sanntidsnavigasjon**: Gir gangveibeskrivelser til nærmeste fasiliteter
+- 🏗️ **3D-bygningsvisualisering**: Veksle mellom 2D og 3D bygningsvisning
+- 🛣️ **Veinettverk-integrasjon**: Valgfri overlay av detaljert veinett
+- 📱 **Responsivt Design**: Fungerer uavhengig av skjermstørrelse
+- 🎯 **Geolokasjon**: Automatisk brukerposisjon og nærmeste fasilitet-finding
 
-Dette prosjektet er bygget med følgende teknologi:
-- **React**: Et populært JavaScript-bibliotek for å bygge brukergrensesnitt.
-- **Material-UI**: Et React-komponentbibliotek for rask og enkel opprettelse av stilige brukergrensesnitt.
-- **React Router**: Et bibliotek for å håndtere navigasjon i React-applikasjoner.
+## Teknologi Stack
+- **Frontend**: React med TypeScript
+- **Kartrendering**: MapLibre GL JS
+- **UI-komponenter**: Material-UI (MUI)
+- **Backend/Database**: Supabase med PostGIS
+- **Ruteplanlegging**: Mapbox Directions API
+- **Ikoner**: FontAwesome
+- **Styling**: CSS-in-JS med MUI System
 
-# Live Demo 
-[demo](https://nuketown-one.vercel.app)
-## Hvordan kjøre prosjektet
+## Datakilder
+1. **Tilfluktsrom**: KILDE
+2. **Politistasjoner**: KILDE
+3. **Sykehus**: KILDE
+4. **Veinett**: KILDE
+5. **Bygningsdata**: KILDE
 
-Følg disse trinnene for å kjøre prosjektet lokalt. Du må ha [Node.js](https://nodejs.org/en) installert på din maskin.
+## Analysefunksjoner
+- Befolkningsdekning for tilfluktsrom
+- Avstandsberegninger med Haversine-formel
+- Estimering av gangtid
+- Kapasitet vs. befolkningsratio
+- Varmekartvisualisering av anleggsdekning
 
-1. **Klone prosjektet**:
-   ```ruby
-   git clone https://github.com/SimonPortillo/nuketown.git
-1. **Last ned avhengigheter**:
-   ```ruby
-   npm install
-1. **Kjør lokalt**:
-   ```ruby
-   npm run dev
----
-# Forhåndsvisning
-![image](https://github.com/user-attachments/assets/6828d8e8-cf33-4128-b6ee-029ed2f9d8f0)
+## Installasjon og Oppsett
 
-![image](https://github.com/user-attachments/assets/461ddb00-4c0b-4306-93af-753159a6f100)
+```bash
+# Klon repositoriet
+git clone https://github.com/simonportillo/nuketown.git
 
+# Naviger til prosjektmappen
+cd nuketown
 
+# Installer avhengigheter
+npm install
+
+# Opprett .env fil med API-nøkler
+cp .env.example .env
+
+# Start utviklingsserveren
+npm run dev
+```
+
+## Miljøvariabler
+```
+VITE_REACT_APP_SUPABASE_URL=din_supabase_url
+VITE_REACT_APP_SUPABASE_KEY=din_supabase_nøkkel
+VITE_MAPBOX_TOKEN=din_mapbox_token
+```
+
+## Prosjektstruktur
+```
+Kommer etter refactor
+```
+
+## Implementasjonsdetaljer
+Applikasjonen implementerer en fullstack-løsning hvor:
+- Romlige data lagres i Supabase med PostGIS-utvidelser
+- Frontend bruker MapLibre GL JS for kartrendering
+- Sanntids geolokasjons-sporing for brukerposisjon
+- Komplekse romlige spørringer for nærmeste fasilitet-søk
+- Dynamisk ruteberegning mellom bruker og fasiliteter
+- Interaktiv lag-veksling for ulike datavisualiseringer
+
+## Fremtidige Forbedringer
+- [ ] Stor refactor
+- [ ] Støtte for offline-modus
+- [ ] Mer detaljert fasilitetsinfo
+- [ ] Integrasjon av sanntids beredskapsvarsler
+- [ ] Forbedringer av tilgjengelighet
+- [ ] Støtte for flere språk
+- [ ] Mobil app-versjon
+
+## Link til live demo
+[LIVE DEMO](https://nuketown-one.vercel.app/)
+
+## Forhåndsvisning
+![cfcc670e76b17458a62295e328cd9446](https://github.com/user-attachments/assets/2e735c85-1f8d-4954-ad0d-2b27acb0629b)
+![a4126ebe9ccca691abdffc7c72c3c70b](https://github.com/user-attachments/assets/85a17fd6-1db7-4524-8263-0391524574b8)
 
