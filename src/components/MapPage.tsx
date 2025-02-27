@@ -24,9 +24,17 @@ import {
   faCube,
   faLayerGroup,
   faXmark,
+  faHospital, // Add this import
 } from "@fortawesome/free-solid-svg-icons";
 import { library } from "@fortawesome/fontawesome-svg-core";
-import { Card, Typography, Box, Switch, FormControlLabel } from "@mui/material";
+import {
+  Card,
+  Typography,
+  Box,
+  Switch,
+  FormControlLabel,
+  Button,
+} from "@mui/material";
 import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import HomeIcon from "@mui/icons-material/Home";
@@ -71,6 +79,15 @@ interface PoliceStation {
   lat: number;
 }
 
+// Add Hospital interface after PoliceStation interface
+interface Hospital {
+  id: number;
+  name: string;
+  phone?: string;
+  lon: number;
+  lat: number;
+}
+
 interface ShelterData {
   shelter_id: number;
   geom: {
@@ -86,6 +103,16 @@ const fetchPoliceStations = async () => {
   const { data, error } = await supabase.from("politi_stasjoner").select("*");
   if (error) {
     console.error("Error fetching police stations:", error);
+    return [];
+  }
+  return data;
+};
+
+// Add fetchHospitals function after fetchPoliceStations
+const fetchHospitals = async () => {
+  const { data, error } = await supabase.from("hospitals").select("*");
+  if (error) {
+    console.error("Error fetching hospitals:", error);
     return [];
   }
   return data;
@@ -161,6 +188,12 @@ function MapPage() {
   const initialRouteSet = useRef(false);
   const routeInitialized = useRef(false);
   const styleDataTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [showHospitals, setShowHospitals] = useState(false);
+  const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(
+    null
+  );
 
   // Add this utility function to handle 3D buildings
   const handle3DBuildings = useCallback((map: MaplibreMap, show: boolean) => {
@@ -261,8 +294,10 @@ function MapPage() {
     const getData = async () => {
       const data = await fetchGeoJSONData();
       const policeData = await fetchPoliceStations();
+      const hospitalData = await fetchHospitals();
       setGeoJSONData(data);
       setPoliceStations(policeData);
+      setHospitals(hospitalData);
     };
     getData();
   }, []);
@@ -453,8 +488,9 @@ function MapPage() {
           }
         ).coordinates;
 
-        // Clear any selected police station
+        // Clear other selections
         setSelectedPoliceStation(null);
+        setSelectedHospital(null);
 
         // Set selected shelter point
         setSelectedPoint({
@@ -581,6 +617,23 @@ function MapPage() {
         type: "image/svg+xml",
       });
       handcuffsImg.src = URL.createObjectURL(handcuffsBlob);
+
+      // Add hospital icon setup in the map setup effect
+      const hospitalImg = new Image();
+      hospitalImg.onload = () => {
+        if (map.hasImage("hospital-icon")) return;
+        map.addImage("hospital-icon", hospitalImg);
+      };
+
+      const hospitalSvgString = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 512 512">
+          <path fill="#FFFFFF" d="${faHospital.icon[4]}" transform="scale(0.65) translate(150, 150)"/>
+        </svg>
+      `;
+      const hospitalBlob = new Blob([hospitalSvgString], {
+        type: "image/svg+xml",
+      });
+      hospitalImg.src = URL.createObjectURL(hospitalBlob);
 
       return () => {
         // Cleanup
@@ -726,8 +779,9 @@ function MapPage() {
         const geometry = e.features[0].geometry as Point;
         const coords = geometry.coordinates;
 
-        // Clear any selected shelter point
+        // Clear other selections
         setSelectedPoint(null);
+        setSelectedHospital(null);
 
         setSelectedPoliceStation({
           id: properties.id,
@@ -748,8 +802,36 @@ function MapPage() {
       map.getCanvas().style.cursor = "";
     });
 
+    // Add hospital click handler in the useEffect where police click handlers are
+    map.on("click", "hospital-layer-symbols", (e) => {
+      if (e.features && e.features[0]) {
+        const properties = e.features[0].properties;
+        const geometry = e.features[0].geometry as Point;
+        const coords = geometry.coordinates;
+
+        setSelectedPoint(null);
+        setSelectedPoliceStation(null);
+        setSelectedHospital({
+          id: properties.id,
+          name: properties.name,
+          phone: properties.phone,
+          lon: coords[0],
+          lat: coords[1],
+        });
+      }
+    });
+
+    map.on("mouseenter", "hospital-layer-symbols", () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+
+    map.on("mouseleave", "hospital-layer-symbols", () => {
+      map.getCanvas().style.cursor = "";
+    });
+
     return () => {
       map.off("click", "police-layer-symbols", () => {});
+      map.off("click", "hospital-layer-symbols", () => {});
     };
   }, [mapLoaded]);
 
@@ -773,6 +855,30 @@ function MapPage() {
     return () => clearTimeout(timeoutId);
   }, [showPoliceStations, showRoads, mapLoaded, handle3DBuildings, is3DMode]);
 
+  // Add this function inside MapPage component
+  const handleGetRoute = useCallback(
+    (lon: number, lat: number) => {
+      if (!userLocation) {
+        return; // Early return if no user location
+      }
+
+      const bounds = new LngLatBounds().extend(userLocation).extend([lon, lat]);
+
+      mapRef.current?.fitBounds(bounds, {
+        padding: { top: 200, bottom: 200, left: 200, right: 200 },
+        duration: 1200,
+      });
+
+      getRoute(userLocation[0], userLocation[1], lon, lat);
+
+      // Clear all selected points when getting directions
+      setSelectedPoint(null);
+      setSelectedPoliceStation(null);
+      setSelectedHospital(null);
+    },
+    [userLocation, getRoute]
+  );
+
   return (
     <div
       style={{
@@ -789,7 +895,7 @@ function MapPage() {
         }}
         initialViewState={{
           longitude: 8.5,
-          latitude: 61.5, 
+          latitude: 61.5,
           zoom: 5,
           pitch: is3DMode ? 45 : 0,
           bearing: 0,
@@ -830,6 +936,27 @@ function MapPage() {
                           id: station.id,
                           name: station.name,
                           phone: station.phone,
+                        },
+                      })),
+                    }
+                  : { type: "FeatureCollection", features: [] },
+            },
+            "hospital-source": {
+              type: "geojson",
+              data:
+                hospitals && hospitals.length > 0
+                  ? {
+                      type: "FeatureCollection",
+                      features: hospitals.map((hospital) => ({
+                        type: "Feature",
+                        geometry: {
+                          type: "Point",
+                          coordinates: [hospital.lon, hospital.lat],
+                        },
+                        properties: {
+                          id: hospital.id,
+                          name: hospital.name,
+                          phone: hospital.phone,
                         },
                       })),
                     }
@@ -1256,6 +1383,160 @@ function MapPage() {
                 ],
               },
             },
+            {
+              id: "hospital-layer-heat",
+              type: "circle",
+              source: "hospital-source",
+              minzoom: 11,
+              layout: {
+                visibility: showHospitals ? "visible" : "none",
+              },
+              paint: {
+                "circle-radius": [
+                  "interpolate",
+                  ["exponential", 1.75],
+                  ["zoom"],
+                  12,
+                  30,
+                  14,
+                  45,
+                  16,
+                  60,
+                ],
+                "circle-color": "#ff0000", // Changed from #ff4081
+                "circle-opacity": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  12,
+                  0.2,
+                  14,
+                  0.15,
+                  15,
+                  0.1,
+                ],
+                "circle-blur": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  12,
+                  1,
+                  14,
+                  0.8,
+                  16,
+                  0.6,
+                ],
+              },
+            },
+            {
+              id: "hospital-layer-glow",
+              type: "circle",
+              source: "hospital-source",
+              minzoom: 11,
+              layout: {
+                visibility: showHospitals ? "visible" : "none",
+              },
+              paint: {
+                "circle-radius": [
+                  "interpolate",
+                  ["exponential", 1.75],
+                  ["zoom"],
+                  12,
+                  20,
+                  14,
+                  30,
+                  16,
+                  40,
+                ],
+                "circle-color": "#ff3333", // Changed from #ff80ab
+                "circle-opacity": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  12,
+                  0.4,
+                  14,
+                  0.3,
+                  15,
+                  0.2,
+                ],
+                "circle-blur": 1,
+              },
+            },
+            {
+              id: "hospital-layer",
+              type: "circle",
+              source: "hospital-source",
+              minzoom: 11,
+              layout: {
+                visibility: showHospitals ? "visible" : "none",
+              },
+              paint: {
+                "circle-radius": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  12,
+                  6,
+                  14,
+                  12,
+                  16,
+                  14,
+                ],
+                "circle-color": "#ff0000", // Changed from #ff4081
+                "circle-stroke-width": 2,
+                "circle-stroke-color": "#FFFFFF",
+                "circle-opacity": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  12,
+                  0.9,
+                  14,
+                  1,
+                ],
+              },
+            },
+            {
+              id: "hospital-layer-symbols",
+              type: "symbol",
+              source: "hospital-source",
+              minzoom: 11,
+              layout: {
+                visibility: showHospitals ? "visible" : "none",
+                "icon-image": "hospital-icon",
+                "icon-size": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  12,
+                  0,
+                  13,
+                  0.4,
+                  14,
+                  0.5,
+                  16,
+                  0.6,
+                ],
+                "icon-allow-overlap": true,
+                "icon-ignore-placement": true,
+                "icon-anchor": "center",
+                "icon-offset": [-3, -2],
+              },
+              paint: {
+                "icon-opacity": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  12,
+                  0,
+                  13,
+                  0.7,
+                  14,
+                  1,
+                ],
+              },
+            },
           ],
         }}
         onLoad={() => {
@@ -1549,6 +1830,136 @@ function MapPage() {
                     </Typography>
                   </Box>
                 </Box>
+                {userLocation && (
+                  <Button
+                    variant="contained"
+                    onClick={() =>
+                      handleGetRoute(
+                        selectedPoliceStation.lon,
+                        selectedPoliceStation.lat
+                      )
+                    }
+                    sx={{
+                      mt: 2,
+                      backgroundColor: "#0066ff",
+                      "&:hover": {
+                        backgroundColor: "#0052cc",
+                      },
+                      width: "100%",
+                    }}
+                  >
+                    Få veibeskrivelse
+                  </Button>
+                )}
+              </Box>
+            </Card>
+          </Popup>
+        )}
+        {selectedHospital && (
+          <Popup
+            longitude={selectedHospital.lon}
+            latitude={selectedHospital.lat}
+            anchor="bottom"
+            onClose={() => setSelectedHospital(null)}
+            closeOnClick={false}
+            className="custom-popup"
+          >
+            <Card
+              sx={{
+                backgroundColor: "rgba(38, 38, 38, 0.95)",
+                color: "white",
+                backdropFilter: "blur(8px)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                boxShadow: "0 4px 30px rgba(0, 0, 0, 0.1)",
+                minWidth: "250px",
+                position: "relative",
+              }}
+            >
+              <Box
+                onClick={() => setSelectedHospital(null)}
+                sx={{
+                  position: "absolute",
+                  right: "8px",
+                  top: "8px",
+                  cursor: "pointer",
+                  color: "rgba(255, 255, 255, 0.7)",
+                  "&:hover": {
+                    color: "#ff0000", // Changed from #ff4081
+                  },
+                  zIndex: 1,
+                }}
+              >
+                <CloseIcon />
+              </Box>
+              <Box sx={{ p: 2 }}>
+                <Box
+                  sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}
+                >
+                  <FontAwesomeIcon
+                    icon={faHospital}
+                    style={{ color: "#ff0000", fontSize: "24px" }} // Changed from #ff4081
+                  />
+                  <Typography variant="h6" sx={{ color: "white" }}>
+                    {selectedHospital.name}
+                  </Typography>
+                </Box>
+
+                {selectedHospital.phone && (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 2,
+                      mb: 2,
+                    }}
+                  >
+                    <Box>
+                      <Typography
+                        variant="body2"
+                        color="rgba(255, 255, 255, 0.7)"
+                      >
+                        Telefon
+                      </Typography>
+                      <Typography variant="body1" sx={{ color: "#ff0000" }}>
+                        {selectedHospital.phone}
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                  <LocationOnIcon sx={{ color: "#ff0000", fontSize: 24 }} />
+                  <Box>
+                    <Typography
+                      variant="body2"
+                      color="rgba(255, 255, 255, 0.7)"
+                    >
+                      Koordinater
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "#ff0000" }}>
+                      {selectedHospital.lat.toFixed(6)},{" "}
+                      {selectedHospital.lon.toFixed(6)}
+                    </Typography>
+                  </Box>
+                </Box>
+                {userLocation && (
+                  <Button
+                    variant="contained"
+                    onClick={() =>
+                      handleGetRoute(selectedHospital.lon, selectedHospital.lat)
+                    }
+                    sx={{
+                      mt: 2,
+                      backgroundColor: "#ff0000",
+                      "&:hover": {
+                        backgroundColor: "#cc0000",
+                      },
+                      width: "100%",
+                    }}
+                  >
+                    Få veibeskrivelse
+                  </Button>
+                )}
               </Box>
             </Card>
           </Popup>
@@ -1769,6 +2180,49 @@ function MapPage() {
                 icon={faRoad}
                 style={{
                   color: showRoads ? "#ff9800" : "rgba(255, 255, 255, 0.7)",
+                  transition: "color 0.3s ease",
+                  fontSize: "1.2rem",
+                }}
+              />
+            }
+          />
+        </Card>
+
+        {/* Hospitals toggle */}
+        <Card
+          sx={{
+            backgroundColor: "rgba(38, 38, 38, 0.95)",
+            color: "white",
+            padding: "11px",
+            borderRadius: "12px",
+            backdropFilter: "blur(8px)",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            boxShadow: "0 4px 30px rgba(0, 0, 0, 0.1)",
+          }}
+        >
+          <FormControlLabel
+            control={
+              <Switch
+                checked={showHospitals}
+                onChange={(e) => setShowHospitals(e.target.checked)}
+                sx={{
+                  "& .MuiSwitch-switchBase.Mui-checked": {
+                    color: "#ff0000", // Changed from #ff4081
+                    "&:hover": {
+                      backgroundColor: "rgba(255, 0, 0, 0.08)", // Changed from rgba(255, 64, 129, 0.08)
+                    },
+                  },
+                  "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+                    backgroundColor: "#ff0000", // Changed from #ff4081
+                  },
+                }}
+              />
+            }
+            label={
+              <FontAwesomeIcon
+                icon={faHospital}
+                style={{
+                  color: showHospitals ? "#ff0000" : "rgba(255, 255, 255, 0.7)", // Changed from #ff4081
                   transition: "color 0.3s ease",
                   fontSize: "1.2rem",
                 }}
