@@ -9,7 +9,7 @@ Nuketown er en interaktiv kartapplikasjon for beredskap som hjelper brukere med 
 - 🏥 **Sykehus**: Visualiserer sykehusplasseringer med akuttjenesteinformasjon
 - 🗺️ **Sanntidsnavigasjon**: Gir gangveibeskrivelser til nærmeste fasiliteter
 - 🏗️ **3D-bygningsvisualisering**: Veksle mellom 2D og 3D bygningsvisning
-- 🛣️ **Veinettverk-integrasjon**: Valgfri overlay av detaljert veinett
+- 🛣️ **Vegnettverk-integrasjon**: Valgfri overlay av detaljert vegnett
 - 📱 **Responsivt Design**: Fungerer uavhengig av skjermstørrelse
 - 🎯 **Geolokasjon**: Automatisk brukerposisjon og nærmeste fasilitet-finding
 
@@ -23,11 +23,12 @@ Nuketown er en interaktiv kartapplikasjon for beredskap som hjelper brukere med 
 - **Styling**: CSS-in-JS med MUI System
 
 ## Datakilder
-1. **Tilfluktsrom**: KILDE
-2. **Politistasjoner**: KILDE
-3. **Sykehus**: KILDE
-4. **Veinett**: KILDE
-5. **Bygningsdata**: KILDE
+1. [**Tilfluktsrom**](https://kartkatalog.geonorge.no/metadata/tilfluktsrom-offentlige/dbae9aae-10e7-4b75-8d67-7f0e8828f3d8)
+2. [**Befolkningsdata**](https://kartkatalog.geonorge.no/metadata/befolkning-paa-grunnkretsniv/7eb907de-fdaa-4442-a8eb-e4bd06da9ca8?search=befolknign)
+3. **Politistasjoner**: KILDE
+4. **Sykehus**: KILDE
+5. [**Vegnett**](https://kartkatalog.geonorge.no/metadata/vegnett2-wms/302fcb0e-a7dc-44f4-a336-8c9ee9709d73)
+6. **Bygningsdata**: KILDE
 
 ## Analysefunksjoner
 - Befolkningsdekning for tilfluktsrom
@@ -95,7 +96,7 @@ Landningsside
 ![a4126ebe9ccca691abdffc7c72c3c70b](https://github.com/user-attachments/assets/85a17fd6-1db7-4524-8263-0391524574b8)
 3D-Kart
 ![d33434c50d780f586b7a3ff7e3d76859](https://github.com/user-attachments/assets/889c7364-b64d-4806-a674-9ee55d28b026)
-Veinett aktivert
+Vegnett aktivert
 ![ea1cbc6b3a868a7a66ae1334774e37f4](https://github.com/user-attachments/assets/1a78091a-8f69-40c2-b529-1ac3d1457d71)
 
 
