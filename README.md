@@ -65,7 +65,18 @@ VITE_MAPBOX_TOKEN=din_mapbox_token
 
 ## Prosjektstruktur
 ```
-Kommer etter refact
+.
+└── src/
+    ├── components/
+    │   ├── LandingPage.tsx
+    │   ├── MapPage.css
+    │   └── MapPage.tsx
+    ├── .env
+    ├── App.css
+    ├── App.tsx
+    ├── index.css
+    ├── main.swx
+    └── vite-end.d.ts
 ```
 
 ## Implementasjonsdetaljer
