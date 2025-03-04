@@ -115,6 +115,8 @@ Landningsside
 ![d33434c50d780f586b7a3ff7e3d76859](https://github.com/user-attachments/assets/889c7364-b64d-4806-a674-9ee55d28b026)
 Vegnett aktivert
 ![ea1cbc6b3a868a7a66ae1334774e37f4](https://github.com/user-attachments/assets/1a78091a-8f69-40c2-b529-1ac3d1457d71)
+Varmekart
+![976811359ed52c7f3e3e7c0a17df26d7](https://github.com/user-attachments/assets/5b75e024-d3b9-4637-b049-e81ea1823d41)
 
 
 
