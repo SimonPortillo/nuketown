@@ -101,6 +101,12 @@ Applikasjonen implementerer en fullstack-løsning hvor:
 [LIVE DEMO](https://nuketown-one.vercel.app/)
 
 ## Forhåndsvisning
+
+demo video:
+
+https://github.com/user-attachments/assets/e9c3c3ca-106d-4a69-a237-93c8d5325a03
+
+
 Landningsside
 ![cfcc670e76b17458a62295e328cd9446](https://github.com/user-attachments/assets/2e735c85-1f8d-4954-ad0d-2b27acb0629b)
 2D-Kart
