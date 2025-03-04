@@ -28,7 +28,7 @@ Nuketown er en interaktiv kartapplikasjon for beredskap som hjelper brukere med 
 3. [**Politistasjoner**](https://overpass-turbo.eu/)
 4. [**Sykehus**](https://overpass-turbo.eu/)
 5. [**Vegnett**](https://kartkatalog.geonorge.no/metadata/vegnett2-wms/302fcb0e-a7dc-44f4-a336-8c9ee9709d73)
-6. *[*Bygningsdata**](https://maplibre.org/maplibre-gl-js/docs/examples/3d-buildings/)
+6. *[**Bygningsdata**](https://maplibre.org/maplibre-gl-js/docs/examples/3d-buildings/)
 
 ## Analysefunksjoner
 - Befolkningsdekning for tilfluktsrom
