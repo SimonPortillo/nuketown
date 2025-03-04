@@ -14,21 +14,21 @@ Nuketown er en interaktiv kartapplikasjon for beredskap som hjelper brukere med 
 - 🎯 **Geolokasjon**: Automatisk brukerposisjon og nærmeste fasilitet-finding
 
 ## Teknologi Stack
-- **Frontend**: React med TypeScript
-- **Kartrendering**: MapLibre GL JS
-- **UI-komponenter**: Material-UI (MUI)
-- **Backend/Database**: Supabase med PostGIS
-- **Ruteplanlegging**: Mapbox Directions API
-- **Ikoner**: FontAwesome
-- **Styling**: CSS-in-JS med MUI System
+- **Frontend**: React med TypeScript og Vite for en hyppig utviklingsprosess
+- **Kartrendering**: MapLibre GL JS for rask og fleksibel rendering av interaktivt kart, med støtte for tilpassede stiler og 3D-visninger.
+- **UI-komponenter**: Material-UI (MUI) for moderne og tilgjengelige brukergrensesnitt, med ferdige komponenter og et tilpassbart designsystem.
+- **Backend/Database**: Supabase med PostGIS for geografiske data og spørringer.
+- **Ruteplanlegging**: Mapbox Directions API for beregning av gangruter basert på sanntidskartdata.
+- **Ikoner**: FontAwesome, et omfattende ikonbibliotek som gir enkle og skalerbare vektorikoner for UI-elementer.
+- **Styling**: CSS-in-JS med MUI System som muliggjør dynamisk og temabasert styling direkte i TypeScript-koden.
 
 ## Datakilder
 1. [**Tilfluktsrom**](https://kartkatalog.geonorge.no/metadata/tilfluktsrom-offentlige/dbae9aae-10e7-4b75-8d67-7f0e8828f3d8)
 2. [**Befolkningsdata**](https://kartkatalog.geonorge.no/metadata/befolkning-paa-grunnkretsniv/7eb907de-fdaa-4442-a8eb-e4bd06da9ca8?search=befolknign)
-3. **Politistasjoner**: KILDE
-4. **Sykehus**: KILDE
+3. [**Politistasjoner**](https://overpass-turbo.eu/)
+4. [**Sykehus**](https://overpass-turbo.eu/)
 5. [**Vegnett**](https://kartkatalog.geonorge.no/metadata/vegnett2-wms/302fcb0e-a7dc-44f4-a336-8c9ee9709d73)
-6. **Bygningsdata**: KILDE
+6. *[*Bygningsdata**](https://maplibre.org/maplibre-gl-js/docs/examples/3d-buildings/)
 
 ## Analysefunksjoner
 - Befolkningsdekning for tilfluktsrom
@@ -65,7 +65,7 @@ VITE_MAPBOX_TOKEN=din_mapbox_token
 
 ## Prosjektstruktur
 ```
-Kommer etter refactor
+Kommer etter refact
 ```
 
 ## Implementasjonsdetaljer
