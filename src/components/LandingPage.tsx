@@ -117,10 +117,10 @@ const LandingPage: React.FC = () => {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundImage: "url(/assets/hero.PNG)",
+            backgroundImage: "url(/assets/hero.jpg)",
             backgroundSize: "cover",
             backgroundPosition: "center",
-            filter: "brightness(1.8) blur(5px)",
+            filter: "brightness(1.5) blur(8px)",
             zIndex: -2,
           },
           "&::after": {
