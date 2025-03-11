@@ -1,5 +1,6 @@
 # Nuketown - Beredskapskart for Norge
-
+> [!IMPORTANT]
+> Denne branchen er kun som referanse for hvordan prosjektet så ut ved innleveringen av oppgave 2.
 ## Om Prosjektet
 Nuketown er en interaktiv kartapplikasjon for beredskap som hjelper brukere med å lokalisere og navigere til kritisk infrastruktur under nødsituasjoner. Applikasjonen visualiserer tilfluktsrom, politistasjoner og sykehus i Norge, og gir viktig informasjon om kapasitet, befolkningsdekning og ruteplanlegging.
 
