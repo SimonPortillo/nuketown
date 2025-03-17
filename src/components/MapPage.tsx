@@ -30,6 +30,13 @@ import ShelterPopup from "./popups/ShelterPopup";
 import MapControls from "./controls/MapControls";
 import DistanceInfoCard from "./cards/DistanceInfoCard";
 import MapLayerToggle from "./buttons/MapLayerToggle";
+import {
+  fetchPoliceLogMessagesWithProxy,
+  PoliceLogMessage,
+} from "../services/PoliceLogService";
+import { reverseGeocode } from "../utils/geocodingUtils";
+import PoliceLogCard from "./cards/PoliceLogCard";
+import PoliceLogButton from "./buttons/PoliceLogButton";
 
 // Import services
 import { PoliceStation, Hospital } from "../services/MapDataService";
@@ -101,6 +108,17 @@ function MapPage() {
   const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(
     null
   );
+
+  const [showPoliceLog, setShowPoliceLog] = useState(false);
+  const [policeMessages, setPoliceMessages] = useState<PoliceLogMessage[]>([]);
+  const [policeLogLoading, setPoliceLogLoading] = useState(false);
+  const [policeLogError, setPoliceLogError] = useState<string | null>(null);
+  const locationProcessedForPoliceLog = useRef(false);
+
+  // Toggle police log visibility
+  const togglePoliceLog = useCallback(() => {
+    setShowPoliceLog((prev) => !prev);
+  }, []);
 
   // Function to fetch route data from MapBox API
   const getRoute = useCallback(
@@ -454,6 +472,45 @@ function MapPage() {
     [userLocation, getRoute]
   );
 
+  // Add this effect to handle fetching police log based on user location
+  useEffect(() => {
+    const fetchPoliceLog = async (lat: number, lon: number) => {
+      if (locationProcessedForPoliceLog.current) return;
+
+      try {
+        setPoliceLogLoading(true);
+
+        // Get district and municipality from user coordinates
+        const { district, municipality } = await reverseGeocode(lat, lon);
+
+        // Fetch police log messages
+        const messages = await fetchPoliceLogMessagesWithProxy(
+          district,
+          municipality
+        );
+
+        setPoliceMessages(messages);
+        setPoliceLogError(null);
+
+        // Don't auto-show the log, just store messages
+        // and the button will appear when there are messages
+
+        // Mark as processed to avoid duplicate requests
+        locationProcessedForPoliceLog.current = true;
+      } catch (error) {
+        console.error("Error fetching police log:", error);
+        setPoliceLogError("Kunne ikke laste politimeldinger.");
+      } finally {
+        setPoliceLogLoading(false);
+      }
+    };
+
+    // Trigger only when we have user location
+    if (userLocation && !locationProcessedForPoliceLog.current) {
+      fetchPoliceLog(userLocation[1], userLocation[0]);
+    }
+  }, [userLocation]);
+
   // Error handling for data loading
   if (error) {
     return (
@@ -567,6 +624,23 @@ function MapPage() {
         showHospitals={showHospitals}
         setShowHospitals={setShowHospitals}
       />
+
+      {/* Show reopen button only when police log is closed and we have messages */}
+      {!showPoliceLog && policeMessages.length > 0 && (
+        <PoliceLogButton
+          onClick={togglePoliceLog}
+          messageCount={policeMessages.length}
+        />
+      )}
+
+      {showPoliceLog && (
+        <PoliceLogCard
+          messages={policeMessages}
+          isLoading={policeLogLoading}
+          error={policeLogError}
+          onClose={() => setShowPoliceLog(false)}
+        />
+      )}
     </div>
   );
 }
