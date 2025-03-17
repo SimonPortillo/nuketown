@@ -237,10 +237,12 @@ const PoliceLogCard = ({
                             )}
                           </Box>
                         }
+                        // Fix hydration issue by explicitly setting component to "div"
+                        // for secondary content that contains Box components
                         secondary={
-                          <Box>
+                          <Box component="div">
                             <Typography
-                              component="span"
+                              component="div" // Changed from span to div
                               sx={{
                                 display: "block",
                                 color: "rgba(255, 255, 255, 0.9)",
@@ -258,16 +260,17 @@ const PoliceLogCard = ({
                                 fontSize: "0.8rem",
                               }}
                             >
-                              <Typography variant="caption">
+                              <Typography variant="caption" component="span">
                                 {message.area ||
                                   `${message.municipality}, ${message.district}`}
                               </Typography>
-                              <Typography variant="caption">
+                              <Typography variant="caption" component="span">
                                 {formatDate(message.createdOn)}
                               </Typography>
                             </Box>
                           </Box>
                         }
+                        secondaryTypographyProps={{ component: "div" }}
                       />
                     </ListItem>
                     {index < visibleMessages.length - 1 && (
