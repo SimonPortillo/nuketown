@@ -75,15 +75,15 @@ export const fetchPoliceLogMessages = async (
       try {
         return await fetchPoliceLogMessagesWithDevProxy(district, municipality);
       } catch (error) {
-        console.warn("Development proxy failed, falling back to CORS proxies", error);
-        return await tryMultipleCorsProxies(district, municipality);
+        console.warn("Development proxy failed, falling back to serverless function", error);
+        return await fetchPoliceLogWithServerlessFunction(district, municipality);
       }
     } else {
-      // In production, try multiple CORS proxies
+      // In production, use our serverless function
       try {
-        return await tryMultipleCorsProxies(district, municipality);
+        return await fetchPoliceLogWithServerlessFunction(district, municipality);
       } catch (error) {
-        console.error("All CORS proxies failed, using fallback data", error);
+        console.error("Serverless function failed, using fallback data", error);
         return fallbackMockData;
       }
     }
@@ -93,74 +93,25 @@ export const fetchPoliceLogMessages = async (
   }
 };
 
-// Try multiple CORS proxies in sequence until one works
-const tryMultipleCorsProxies = async (
-  district?: string,
-  municipality?: string
-): Promise<PoliceLogMessage[]> => {
-  // List of CORS proxies to try in order
-  const corsProxies = [
-    "https://api.allorigins.win/raw?url=",
-    "https://thingproxy.freeboard.io/fetch/",
-    "https://cors-anywhere.herokuapp.com/",
-    "https://corsproxy.io/?",
-  ];
-  
-  let lastError;
-  
-  // Try each proxy in sequence
-  for (const proxy of corsProxies) {
-    try {
-      const messages = await fetchPoliceLogMessagesWithSpecificProxy(proxy, district, municipality);
-      console.log(`Successfully fetched data using proxy: ${proxy}`);
-      return messages;
-    } catch (error) {
-      console.warn(`Proxy ${proxy} failed, trying next one...`, error);
-      lastError = error;
-    }
-  }
-  
-  // If all proxies fail, try without a proxy (might work in some environments)
-  try {
-    const messages = await fetchPoliceLogMessagesDirectly(district, municipality);
-    return messages;
-  } catch (error) {
-    console.error("Direct API call also failed", error);
-    lastError = error;
-  }
-  
-  throw lastError || new Error("All proxies failed");
-};
-
-// Method using a specific CORS proxy
-const fetchPoliceLogMessagesWithSpecificProxy = async (
-  corsProxy: string,
+// New method to fetch using our serverless function
+const fetchPoliceLogWithServerlessFunction = async (
   district?: string,
   municipality?: string
 ): Promise<PoliceLogMessage[]> => {
   try {
-    const baseUrl = "https://api.politiet.no/politiloggen/v1/messages";
+    // Build query parameters
     const params = new URLSearchParams();
-    if (district) params.append("Districts", district);
-    if (municipality) params.append("Municipalities", municipality);
+    if (district) params.append("district", district);
+    if (municipality) params.append("municipality", municipality);
     
-    const apiUrl = `${baseUrl}${params.toString() ? `?${params.toString()}` : ''}`;
-    const url = `${corsProxy}${encodeURIComponent(apiUrl)}`;
+    // Use the serverless function endpoint
+    const url = `/api/policeLog${params.toString() ? `?${params.toString()}` : ''}`;
     
-    console.log(`Attempting to fetch police log via proxy: ${corsProxy}`);
+    console.log("Fetching police log via serverless function:", url);
     
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      // Adding a timeout using AbortController
-      signal: AbortSignal.timeout(10000) // 10 second timeout
-    });
-    
+    const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(`Failed to fetch police log: ${response.statusText}`);
+      throw new Error(`Failed to fetch from serverless function: ${response.statusText}`);
     }
     
     const responseData: PoliceLogResponse = await response.json();
@@ -168,46 +119,7 @@ const fetchPoliceLogMessagesWithSpecificProxy = async (
     
     return responseData.data || [];
   } catch (error) {
-    console.error(`Error fetching police log with proxy ${corsProxy}:`, error);
-    throw error;
-  }
-};
-
-// Try direct API call without any proxy (may work in some environments)
-const fetchPoliceLogMessagesDirectly = async (
-  district?: string,
-  municipality?: string
-): Promise<PoliceLogMessage[]> => {
-  try {
-    const baseUrl = "https://api.politiet.no/politiloggen/v1/messages";
-    const params = new URLSearchParams();
-    if (district) params.append("Districts", district);
-    if (municipality) params.append("Municipalities", municipality);
-    
-    const url = `${baseUrl}${params.toString() ? `?${params.toString()}` : ''}`;
-    
-    console.log("Attempting direct API call without proxy");
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Origin': window.location.origin,
-      },
-      mode: 'cors',
-      // Adding a timeout using AbortController
-      signal: AbortSignal.timeout(5000) // 5 second timeout
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Direct API call failed: ${response.statusText}`);
-    }
-    
-    const responseData: PoliceLogResponse = await response.json();
-    return responseData.data || [];
-  } catch (error) {
-    console.error("Error with direct API call:", error);
+    console.error("Error fetching police log with serverless function:", error);
     throw error;
   }
 };
