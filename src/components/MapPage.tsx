@@ -31,7 +31,7 @@ import MapControls from "./controls/MapControls";
 import DistanceInfoCard from "./cards/DistanceInfoCard";
 import MapLayerToggle from "./buttons/MapLayerToggle";
 import {
-  fetchPoliceLogMessagesWithProxy,
+  fetchPoliceLogMessages,
   PoliceLogMessage,
 } from "../services/PoliceLogService";
 import { reverseGeocode } from "../utils/geocodingUtils";
@@ -483,23 +483,30 @@ function MapPage() {
         // Get district and municipality from user coordinates
         const { district, municipality } = await reverseGeocode(lat, lon);
 
-        // Fetch police log messages
-        const messages = await fetchPoliceLogMessagesWithProxy(
-          district,
-          municipality
-        );
+        console.log("Fetching police log for:", district, municipality);
 
-        setPoliceMessages(messages);
-        setPoliceLogError(null);
+        // Use the main function instead of the proxy-specific one
+        const messages = await fetchPoliceLogMessages(district, municipality);
 
-        // Don't auto-show the log, just store messages
-        // and the button will appear when there are messages
+        if (messages && messages.length > 0) {
+          console.log(
+            `Successfully fetched ${messages.length} police log messages`
+          );
+          setPoliceMessages(messages);
+          setPoliceLogError(null);
+          // Show the log only if we have messages and no errors
+          setShowPoliceLog(false); // Start with closed log, user can open with button
+        } else {
+          console.log("No police log messages found for this location");
+        }
 
         // Mark as processed to avoid duplicate requests
         locationProcessedForPoliceLog.current = true;
       } catch (error) {
         console.error("Error fetching police log:", error);
         setPoliceLogError("Kunne ikke laste politimeldinger.");
+        // Still mark as processed to prevent repeated failing requests
+        locationProcessedForPoliceLog.current = true;
       } finally {
         setPoliceLogLoading(false);
       }
