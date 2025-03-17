@@ -37,19 +37,44 @@ export const reverseGeocode = async (
 };
 
 const mapToPoliceDistrict = (county: string): string => {
-  // Using exact names as they appear in the API response
+  // Updated mapping using exact names expected by the API
   const districtMapping: Record<string, string> = {
+    // Direct mappings
     "Oslo": "Oslo",
-    "Viken": "Øst", 
+    "Viken": "Øst",
     "Innlandet": "Innlandet",
-    "Vestfold og Telemark": "Sør-Øst",
-    "Agder": "Agder", // This should match "Agder Politidistrikt" in the API
-    "Rogaland": "Sør-Vest",
+    "Agder": "Agder",
     "Vestland": "Vest",
-    "Møre og Romsdal": "Møre og Romsdal",
     "Trøndelag": "Trøndelag",
     "Nordland": "Nordland",
-    "Troms og Finnmark": "Finnmark",
+
+    // Names that need format correction
+    "Vestfold og Telemark": "SørØst",
+    "Telemark": "SørØst",
+    "Vestfold": "SørØst",
+    "Buskerud": "SørØst",
+    "Rogaland": "SørVest",
+    "Møre og Romsdal": "MøreOgRomsdal",
+    
+    // Northern counties
+    "Troms": "Troms",
+    "Finnmark": "Finnmark",
+    "Troms og Finnmark": "Troms" // Default to Troms when combined
   };
-  return districtMapping[county] || county;
+  
+  // Try to match with the exact county name
+  if (districtMapping[county]) {
+    return districtMapping[county];
+  }
+  
+  // If not found, try to find a partial match
+  for (const [key, value] of Object.entries(districtMapping)) {
+    if (county.includes(key)) {
+      return value;
+    }
+  }
+  
+  // If all else fails, return the original county name
+  console.warn(`Could not map county ${county} to police district, using as-is.`);
+  return county;
 };
