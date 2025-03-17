@@ -410,8 +410,10 @@ function MapPage() {
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
-    handle3DBuildings(map, is3DMode);
-  }, [is3DMode, mapLoaded, handle3DBuildings]);
+    handle3DBuildings(map, is3DMode, {
+      beforeLayerId: "shelter-heatmap", // Add 3D buildings before the shelter heatmap layer
+    });
+  }, [is3DMode, mapLoaded]);
 
   // Add this effect to maintain 3D buildings when other style changes occur
   useEffect(() => {
@@ -420,11 +422,13 @@ function MapPage() {
 
     // Short timeout to ensure the style has finished updating
     const timeoutId = setTimeout(() => {
-      handle3DBuildings(map, true);
+      handle3DBuildings(map, true, {
+        beforeLayerId: "shelter-heatmap", // Add 3D buildings before the shelter heatmap layer
+      });
     }, 100);
 
     return () => clearTimeout(timeoutId);
-  }, [showPoliceStations, showRoads, mapLoaded, handle3DBuildings, is3DMode]);
+  }, [showPoliceStations, showRoads, mapLoaded, is3DMode]);
 
   // Add this function inside MapPage component
   const handleGetRoute = useCallback(
@@ -436,8 +440,8 @@ function MapPage() {
       const bounds = new LngLatBounds().extend(userLocation).extend([lon, lat]);
 
       mapRef.current?.fitBounds(bounds, {
-        padding: { top: 200, bottom: 200, left: 200, right: 200 },
-        duration: 1200,
+        padding: { top: 300, bottom: 300, left: 300, right: 300 },
+        duration: 1500,
       });
 
       getRoute(userLocation[0], userLocation[1], lon, lat);

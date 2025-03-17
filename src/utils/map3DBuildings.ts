@@ -15,16 +15,18 @@ export const handle3DBuildings = (
     animationDuration?: number;
     pitch?: number;
     bearing?: number;
+    beforeLayerId?: string; // New parameter to control where the layer is inserted
   } = {}
 ) => {
   if (!map) return;
-
+  
   const {
     sourceUrl = "https://api.maptiler.com/tiles/v3/tiles.json?key=eE87Cs6ofbIAP2G5mFFy",
     buildingColors = [[0, "#141414"], [50, "#0d0900"], [400, "lightblue"]],
     animationDuration = 1000,
     pitch = 45,
-    bearing = -17.6
+    bearing = -17.6,
+    beforeLayerId = "shelter-heatmap" // Default to insert before the shelter heatmap layer
   } = options;
 
   // Check if we need to add the source
@@ -39,21 +41,6 @@ export const handle3DBuildings = (
   const buildingLayer = map.getLayer("3d-buildings");
 
   if (show && !buildingLayer) {
-    // Find the first symbol layer
-    const layers = map.getStyle().layers || [];
-    let labelLayerId: string | undefined;
-
-    for (const layer of layers) {
-      if (
-        layer.type === "symbol" &&
-        layer.layout &&
-        "text-field" in layer.layout
-      ) {
-        labelLayerId = layer.id;
-        break;
-      }
-    }
-
     // Create colors interpolation array for the extrusion color
     const colorStops = buildingColors.flatMap(([height, color]) => [height, color]);
 
@@ -86,11 +73,12 @@ export const handle3DBuildings = (
           ["get", "render_min_height"],
           0,
         ],
-        "fill-extrusion-opacity": 0.8,
+        "fill-extrusion-opacity": 1,
       },
     };
 
-    map.addLayer(newBuildingLayer, labelLayerId);
+    // Add the layer before the specified layer ID to ensure proper stacking
+    map.addLayer(newBuildingLayer, beforeLayerId);
   } else if (buildingLayer) {
     map.setLayoutProperty(
       "3d-buildings",
