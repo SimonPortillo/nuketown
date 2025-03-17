@@ -483,17 +483,30 @@ function MapPage() {
         // Get district and municipality from user coordinates
         const { district, municipality } = await reverseGeocode(lat, lon);
 
+        console.log("Fetching police log for:", district, municipality);
+
         // Use the main function instead of the proxy-specific one
         const messages = await fetchPoliceLogMessages(district, municipality);
 
-        setPoliceMessages(messages);
-        setPoliceLogError(null);
+        if (messages && messages.length > 0) {
+          console.log(
+            `Successfully fetched ${messages.length} police log messages`
+          );
+          setPoliceMessages(messages);
+          setPoliceLogError(null);
+          // Show the log only if we have messages and no errors
+          setShowPoliceLog(false); // Start with closed log, user can open with button
+        } else {
+          console.log("No police log messages found for this location");
+        }
 
         // Mark as processed to avoid duplicate requests
         locationProcessedForPoliceLog.current = true;
       } catch (error) {
         console.error("Error fetching police log:", error);
         setPoliceLogError("Kunne ikke laste politimeldinger.");
+        // Still mark as processed to prevent repeated failing requests
+        locationProcessedForPoliceLog.current = true;
       } finally {
         setPoliceLogLoading(false);
       }

@@ -29,6 +29,38 @@ export interface PoliceLogResponse {
   };
 }
 
+// Fallback mock data to use when all API methods fail
+const fallbackMockData: PoliceLogMessage[] = [
+  {
+    id: "fallback-1",
+    threadId: "fallback-thread",
+    category: "Trafikk",
+    district: "Demo Politidistrikt",
+    municipality: "Demo Kommune",
+    area: "Sentrum",
+    isActive: true,
+    text: "Dette er en demo-melding fordi API-tilkoblingen ikke er tilgjengelig. Systemet kjører i feilsikker modus.",
+    createdOn: new Date().toISOString(),
+    updatedOn: new Date().toISOString(),
+    previouslyIncludedImage: false,
+    isEdited: false
+  },
+  {
+    id: "fallback-2",
+    threadId: "fallback-thread",
+    category: "Informasjon",
+    district: "Demo Politidistrikt",
+    municipality: "Demo Kommune",
+    area: "Nettverk",
+    isActive: false,
+    text: "API-forespørsel feiler på grunn av CORS-begrensninger. Dette er generert demo-innhold.",
+    createdOn: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
+    updatedOn: new Date(Date.now() - 3600000).toISOString(),
+    previouslyIncludedImage: false,
+    isEdited: false
+  }
+];
+
 // The main function that automatically selects the best method based on environment
 export const fetchPoliceLogMessages = async (
   district?: string,
@@ -43,27 +75,70 @@ export const fetchPoliceLogMessages = async (
       try {
         return await fetchPoliceLogMessagesWithDevProxy(district, municipality);
       } catch (error) {
-        console.warn("Development proxy failed, falling back to CORS proxy", error);
-        return await fetchPoliceLogMessagesWithCorsProxy(district, municipality);
+        console.warn("Development proxy failed, falling back to CORS proxies", error);
+        return await tryMultipleCorsProxies(district, municipality);
       }
     } else {
-      // In production, use the CORS proxy approach
-      return await fetchPoliceLogMessagesWithCorsProxy(district, municipality);
+      // In production, try multiple CORS proxies
+      try {
+        return await tryMultipleCorsProxies(district, municipality);
+      } catch (error) {
+        console.error("All CORS proxies failed, using fallback data", error);
+        return fallbackMockData;
+      }
     }
   } catch (error) {
     console.error("All methods to fetch police log failed:", error);
-    return [];
+    return fallbackMockData; // Return mock data as a last resort
   }
 };
 
-// Method using a CORS proxy (works in both development and production)
-const fetchPoliceLogMessagesWithCorsProxy = async (
+// Try multiple CORS proxies in sequence until one works
+const tryMultipleCorsProxies = async (
+  district?: string,
+  municipality?: string
+): Promise<PoliceLogMessage[]> => {
+  // List of CORS proxies to try in order
+  const corsProxies = [
+    "https://api.allorigins.win/raw?url=",
+    "https://thingproxy.freeboard.io/fetch/",
+    "https://cors-anywhere.herokuapp.com/",
+    "https://corsproxy.io/?",
+  ];
+  
+  let lastError;
+  
+  // Try each proxy in sequence
+  for (const proxy of corsProxies) {
+    try {
+      const messages = await fetchPoliceLogMessagesWithSpecificProxy(proxy, district, municipality);
+      console.log(`Successfully fetched data using proxy: ${proxy}`);
+      return messages;
+    } catch (error) {
+      console.warn(`Proxy ${proxy} failed, trying next one...`, error);
+      lastError = error;
+    }
+  }
+  
+  // If all proxies fail, try without a proxy (might work in some environments)
+  try {
+    const messages = await fetchPoliceLogMessagesDirectly(district, municipality);
+    return messages;
+  } catch (error) {
+    console.error("Direct API call also failed", error);
+    lastError = error;
+  }
+  
+  throw lastError || new Error("All proxies failed");
+};
+
+// Method using a specific CORS proxy
+const fetchPoliceLogMessagesWithSpecificProxy = async (
+  corsProxy: string,
   district?: string,
   municipality?: string
 ): Promise<PoliceLogMessage[]> => {
   try {
-    // Use a more reliable CORS proxy
-    const corsProxy = "https://corsproxy.io/?"; // Alternative proxies if needed: "https://cors-anywhere.herokuapp.com/"
     const baseUrl = "https://api.politiet.no/politiloggen/v1/messages";
     const params = new URLSearchParams();
     if (district) params.append("Districts", district);
@@ -72,14 +147,16 @@ const fetchPoliceLogMessagesWithCorsProxy = async (
     const apiUrl = `${baseUrl}${params.toString() ? `?${params.toString()}` : ''}`;
     const url = `${corsProxy}${encodeURIComponent(apiUrl)}`;
     
-    console.log("Fetching police log via CORS proxy:", apiUrl);
+    console.log(`Attempting to fetch police log via proxy: ${corsProxy}`);
     
     const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-      }
+      },
+      // Adding a timeout using AbortController
+      signal: AbortSignal.timeout(10000) // 10 second timeout
     });
     
     if (!response.ok) {
@@ -91,7 +168,46 @@ const fetchPoliceLogMessagesWithCorsProxy = async (
     
     return responseData.data || [];
   } catch (error) {
-    console.error("Error fetching police log with CORS proxy:", error);
+    console.error(`Error fetching police log with proxy ${corsProxy}:`, error);
+    throw error;
+  }
+};
+
+// Try direct API call without any proxy (may work in some environments)
+const fetchPoliceLogMessagesDirectly = async (
+  district?: string,
+  municipality?: string
+): Promise<PoliceLogMessage[]> => {
+  try {
+    const baseUrl = "https://api.politiet.no/politiloggen/v1/messages";
+    const params = new URLSearchParams();
+    if (district) params.append("Districts", district);
+    if (municipality) params.append("Municipalities", municipality);
+    
+    const url = `${baseUrl}${params.toString() ? `?${params.toString()}` : ''}`;
+    
+    console.log("Attempting direct API call without proxy");
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Origin': window.location.origin,
+      },
+      mode: 'cors',
+      // Adding a timeout using AbortController
+      signal: AbortSignal.timeout(5000) // 5 second timeout
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Direct API call failed: ${response.statusText}`);
+    }
+    
+    const responseData: PoliceLogResponse = await response.json();
+    return responseData.data || [];
+  } catch (error) {
+    console.error("Error with direct API call:", error);
     throw error;
   }
 };
