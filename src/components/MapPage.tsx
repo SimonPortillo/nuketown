@@ -31,7 +31,7 @@ import MapControls from "./controls/MapControls";
 import DistanceInfoCard from "./cards/DistanceInfoCard";
 import MapLayerToggle from "./buttons/MapLayerToggle";
 import {
-  fetchPoliceLogMessagesWithProxy,
+  fetchPoliceLogMessages,
   PoliceLogMessage,
 } from "../services/PoliceLogService";
 import { reverseGeocode } from "../utils/geocodingUtils";
@@ -483,17 +483,11 @@ function MapPage() {
         // Get district and municipality from user coordinates
         const { district, municipality } = await reverseGeocode(lat, lon);
 
-        // Fetch police log messages
-        const messages = await fetchPoliceLogMessagesWithProxy(
-          district,
-          municipality
-        );
+        // Use the main function instead of the proxy-specific one
+        const messages = await fetchPoliceLogMessages(district, municipality);
 
         setPoliceMessages(messages);
         setPoliceLogError(null);
-
-        // Don't auto-show the log, just store messages
-        // and the button will appear when there are messages
 
         // Mark as processed to avoid duplicate requests
         locationProcessedForPoliceLog.current = true;
