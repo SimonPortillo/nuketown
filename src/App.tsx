@@ -3,7 +3,8 @@ import CssBaseline from "@mui/material/CssBaseline";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import LandingPage from "./components/LandingPage";
 import MapPage from "./components/MapPage";
-import { Analytics } from '@vercel/analytics/react';
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 const theme = createTheme({
   palette: {
@@ -73,6 +74,7 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Analytics />
+      <SpeedInsights />
       <Router>
         <Routes>
           <Route path="/" element={<LandingPage />} />
