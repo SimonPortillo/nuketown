@@ -1,72 +1,76 @@
-import { useEffect, useState, useRef } from "react";
-import { Map, NavigationControl, GeolocateControl, FullscreenControl, Popup, ScaleControl } from 'react-map-gl/maplibre';
-import 'maplibre-gl/dist/maplibre-gl.css';
-import { createClient } from "@supabase/supabase-js";
-import proj4 from 'proj4';
-import type { MapGeoJSONFeature } from 'maplibre-gl';
-import type { Map as MaplibreMap } from 'maplibre-gl';
+// MapPage.tsx
+import { useEffect, useState, useRef, useCallback } from "react";
+import {
+  Map,
+  NavigationControl,
+  GeolocateControl,
+  FullscreenControl,
+  ScaleControl,
+} from "react-map-gl/maplibre";
+import { LngLatBounds } from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
+import type { Map as MaplibreMap } from "maplibre-gl";
+import {
+  faRadiation,
+  faHandcuffs,
+  faRoad,
+  faCube,
+  faLayerGroup,
+  faXmark,
+  faHospital,
+} from "@fortawesome/free-solid-svg-icons";
+import { library } from "@fortawesome/fontawesome-svg-core";
+import "./MapPage.css";
+import type { FeatureCollection, Geometry, GeoJsonProperties } from "geojson";
 
-const supabaseUrl = import.meta.env.VITE_REACT_APP_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_REACT_APP_SUPABASE_KEY;
+// Import components
+import PoliceStationPopup from "./popups/PoliceStationPopup";
+import HospitalPopup from "./popups/HospitalPopup";
+import ShelterPopup from "./popups/ShelterPopup";
+import MapControls from "./controls/MapControls";
+import DistanceInfoCard from "./cards/DistanceInfoCard";
+import MapLayerToggle from "./buttons/MapLayerToggle";
+import {
+  fetchPoliceLogMessages,
+  PoliceLogMessage,
+} from "../services/PoliceLogService";
+import { reverseGeocode } from "../utils/geocodingUtils";
+import PoliceLogCard from "./cards/PoliceLogCard";
+import PoliceLogButton from "./buttons/PoliceLogButton";
 
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase environment variables');
-}
+// Import services
+import { PoliceStation, Hospital } from "../services/MapDataService";
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Import hooks
+import { useMapData } from "../hooks/useMapData";
 
-// Define coordinate systems
-proj4.defs("EPSG:25833", "+proj=utm +zone=33 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
-proj4.defs("EPSG:4326", "+proj=longlat +datum=WGS84 +no_defs");
+// Import utilities
+import { createMapIcon } from "../utils/mapIcons";
+import {
+  calculateDistance,
+  calculateWalkTime,
+  findClosestShelter,
+  getRouteData,
+} from "../utils/mapCalculations";
+import { handle3DBuildings } from "../utils/map3DBuildings";
+import { createMapStyle } from "../utils/mapStyleConfig";
+import {
+  setupShelterClickHandler,
+  setupPoliceStationClickHandler,
+  setupHospitalClickHandler,
+  addOrUpdateRouteLayer,
+} from "../utils/mapEventHandlers";
 
-const transformCoordinates = (coords: number[]): number[] => {
-  return proj4("EPSG:25833", "EPSG:4326", coords);
-};
+const MapBoxToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
-interface ShelterData {
-  shelter_id: number;
-  geom: {
-    type: string;
-    coordinates: number[];
-  };
-  adresse: string;
-  plasser: number;
-}
-
-const fetchGeoJSONData = async () => {
-  const { data, error } = await supabase
-    .rpc('get_shelters_geojson_with_info');
-
-  if (error) {
-    console.error("Error fetching data:", error);
-    return null;
-  }
-
-  // Convert data to GeoJSON format with coordinate transformation
-  const geoJSON = {
-    type: "FeatureCollection",
-    features: (data as ShelterData[]).map((item) => ({
-      type: "Feature",
-      geometry: {
-        type: "Point",
-        coordinates: transformCoordinates([
-          item.geom.coordinates[0],
-          item.geom.coordinates[1]
-        ])
-      },
-      properties: { 
-        id: item.shelter_id,
-        address: item.adresse,
-        capacity: item.plasser
-      }
-    }))
-  };
-
-  return geoJSON;
-};
+// Add icon to library
+library.add(faRadiation, faHandcuffs, faRoad, faCube, faLayerGroup, faXmark);
 
 function MapPage() {
-  const [geoJSONData, setGeoJSONData] = useState<any | null>(null);
+  // Use the custom hook for data loading
+  const { geoJSONData, policeStations, hospitals, isLoading, error } =
+    useMapData();
+
   const mapRef = useRef<MaplibreMap | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [selectedPoint, setSelectedPoint] = useState<{
@@ -74,215 +78,576 @@ function MapPage() {
     latitude: number;
     address: string;
     capacity: number;
+    population?: number;
+    coverage_ratio?: number;
   } | null>(null);
+  const geolocateRef = useRef<maplibregl.GeolocateControl | undefined>(
+    undefined
+  );
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(
+    null
+  );
+  const [routeData, setRouteData] = useState<any>(null);
+  const [distanceToShelter, setDistanceToShelter] = useState<number | null>(
+    null
+  );
+  const [walkTime, setWalkTime] = useState<string | null>(null);
+  const mapLoadedRef = useRef(false);
+  const [selectedPoliceStation, setSelectedPoliceStation] =
+    useState<PoliceStation | null>(null);
+  const [showPoliceStations, setShowPoliceStations] = useState(false);
+  const [is3DMode, setIs3DMode] = useState(false);
+  const [showRoads, setShowRoads] = useState(false);
 
-  // Fetch data effect
-  useEffect(() => {
-    const getData = async () => {
-      const data = await fetchGeoJSONData();
-      setGeoJSONData(data);
-    };
-    getData();
+  const [showControls, setShowControls] = useState(false);
+  const initialRouteSet = useRef(false);
+  const routeInitialized = useRef(false);
+  const styleDataTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const [showHospitals, setShowHospitals] = useState(false);
+  const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(
+    null
+  );
+
+  const [showPoliceLog, setShowPoliceLog] = useState(false);
+  const [policeMessages, setPoliceMessages] = useState<PoliceLogMessage[]>([]);
+  const [policeLogLoading, setPoliceLogLoading] = useState(false);
+  const [policeLogError, setPoliceLogError] = useState<string | null>(null);
+  const locationProcessedForPoliceLog = useRef(false);
+
+  // Toggle police log visibility
+  const togglePoliceLog = useCallback(() => {
+    setShowPoliceLog((prev) => !prev);
   }, []);
 
-  // Map setup effect
+  // Function to fetch route data from MapBox API
+  const getRoute = useCallback(
+    async (
+      startLon: number,
+      startLat: number,
+      endLon: number,
+      endLat: number
+    ) => {
+      const routeGeometry = await getRouteData(
+        startLon,
+        startLat,
+        endLon,
+        endLat,
+        MapBoxToken
+      );
+      if (routeGeometry) {
+        setRouteData(routeGeometry);
+      }
+    },
+    []
+  );
+
+  // Use effect to find closest shelter and get route
+  useEffect(() => {
+    const map = mapRef.current;
+    if (userLocation && geoJSONData && map && !initialRouteSet.current) {
+      // Find the closest shelter
+      const closestShelter = findClosestShelter(
+        userLocation[1],
+        userLocation[0],
+        geoJSONData
+      );
+
+      if (closestShelter) {
+        const coords = closestShelter.geometry.coordinates;
+
+        // Calculate the distance to the closest shelter
+        const distance = calculateDistance(
+          userLocation[1],
+          userLocation[0],
+          coords[1],
+          coords[0]
+        );
+        setDistanceToShelter(distance);
+
+        const walkTimeMinutes = calculateWalkTime(distance);
+        setWalkTime(`${Math.round(walkTimeMinutes)}`);
+
+        // Update this part to include population and coverage data
+        setSelectedPoint({
+          longitude: coords[0],
+          latitude: coords[1],
+          address: closestShelter.properties.address,
+          capacity: closestShelter.properties.capacity,
+          population: closestShelter.properties.population,
+          coverage_ratio: closestShelter.properties.coverage_ratio,
+        });
+
+        // Get the route
+        getRoute(userLocation[0], userLocation[1], coords[0], coords[1]);
+
+        // Calculate center point between user and shelter
+        const centerLng = (userLocation[0] + coords[0]) / 2;
+        const centerLat = (userLocation[1] + coords[1]) / 2;
+
+        map.flyTo({
+          center: [centerLng, centerLat],
+          zoom: 14,
+          duration: 2000,
+          essential: true,
+        });
+
+        // Set the flag to prevent further initial route calculations
+        initialRouteSet.current = true;
+      } else {
+        setDistanceToShelter(null);
+      }
+    }
+  }, [userLocation, geoJSONData, mapRef]);
+
+  // Use effect to handle user location changes
+  useEffect(() => {
+    if (!geolocateRef.current) return;
+
+    const geolocateControl = geolocateRef.current;
+
+    const handleGeolocate = (event: GeolocationPosition) => {
+      const { latitude, longitude } = event.coords;
+      setUserLocation((prevLocation) => {
+        if (
+          prevLocation &&
+          prevLocation[0] === longitude &&
+          prevLocation[1] === latitude
+        ) {
+          return prevLocation;
+        }
+        return [longitude, latitude];
+      });
+    };
+
+    const handleTrackEnd = () => {
+      setUserLocation(null);
+    };
+
+    geolocateControl.off("geolocate", handleGeolocate);
+    geolocateControl.off("trackuserlocationend", handleTrackEnd);
+
+    geolocateControl.on("geolocate", handleGeolocate);
+    geolocateControl.on("trackuserlocationend", handleTrackEnd);
+
+    return () => {
+      geolocateControl.off("geolocate", handleGeolocate);
+      geolocateControl.off("trackuserlocationend", handleTrackEnd);
+    };
+  }, [mapLoaded]);
+
+  // Setup map event handlers
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !geoJSONData || !mapLoaded) return;
 
     try {
-      if (!map.getSource('geojson-source')) {
-        map.addSource('geojson-source', {
-          type: 'geojson',
-          data: geoJSONData
-        });
-      } else {
-        (map.getSource('geojson-source') as maplibregl.GeoJSONSource).setData(geoJSONData);
-      }
+      // Load map icons
+      Promise.all([
+        createMapIcon(map, "biohazard-icon", {
+          icon: faRadiation,
+          fillColor: "#000000",
+          scale: 0.8,
+          translateX: 51.2,
+          translateY: 51.2,
+        }),
+        createMapIcon(map, "handcuffs-icon", {
+          icon: faHandcuffs,
+          fillColor: "#FFFFFF",
+        }),
+        createMapIcon(map, "hospital-icon", {
+          icon: faHospital,
+          fillColor: "#FFFFFF",
+        }),
+      ]).then(() => {
+        // Add source and layer after images are loaded
+        if (!map.getSource("geojson-source")) {
+          map.addSource("geojson-source", {
+            type: "geojson",
+            data: geoJSONData,
+          });
+        } else {
+          (map.getSource("geojson-source") as maplibregl.GeoJSONSource).setData(
+            geoJSONData
+          );
+        }
 
-      // Add event listeners
-      map.on('click', 'geojson-layer', (e: { features?: MapGeoJSONFeature[] }) => {
-        if (e.features?.[0]) {
-          const feature = e.features[0];
-          const coords = (feature.geometry as { type: 'Point', coordinates: [number, number] }).coordinates;
-          setSelectedPoint({
-            longitude: coords[0],
-            latitude: coords[1],
-            address: feature.properties?.address as string,
-            capacity: feature.properties?.capacity as number
+        // Add shelter layer if needed
+        if (!map.getLayer("geojson-layer-symbols")) {
+          map.addLayer({
+            id: "geojson-layer-symbols",
+            type: "symbol",
+            source: "geojson-source",
+            layout: {
+              "icon-image": "biohazard-icon",
+              "icon-size": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                5,
+                0.4,
+                10,
+                0.5,
+                15,
+                0.6,
+              ],
+              "icon-allow-overlap": true,
+              "icon-ignore-placement": true,
+              "icon-anchor": "center",
+              "icon-offset": [0, 0],
+            },
+            paint: {
+              "icon-opacity": 1,
+            },
           });
         }
-      });
 
-      map.on('mouseenter', 'geojson-layer', () => {
-        map.getCanvas().style.cursor = 'pointer';
-      });
+        // Setup shelter click handlers
+        setupShelterClickHandler(map, "geojson-layer-symbols", {
+          onSelect: (point) => setSelectedPoint(point),
+          onClearSelections: () => {
+            setSelectedPoliceStation(null);
+            setSelectedHospital(null);
+          },
+          userLocation,
+          onDistanceCalculated: (distance) => setDistanceToShelter(distance),
+          onWalkTimeCalculated: (time) => setWalkTime(time),
+          onGetRoute: getRoute,
+        });
 
-      map.on('mouseleave', 'geojson-layer', () => {
-        map.getCanvas().style.cursor = '';
-      });
+        // Setup police station click handlers
+        setupPoliceStationClickHandler(map, "police-layer-symbols", {
+          onSelect: (station) => setSelectedPoliceStation(station),
+          onClearSelections: () => {
+            setSelectedPoint(null);
+            setSelectedHospital(null);
+          },
+        });
 
+        // Setup hospital click handlers
+        setupHospitalClickHandler(map, "hospital-layer-symbols", {
+          onSelect: (hospital) => setSelectedHospital(hospital),
+          onClearSelections: () => {
+            setSelectedPoint(null);
+            setSelectedPoliceStation(null);
+          },
+        });
+      });
     } catch (error) {
-      console.error('Error setting up map:', error);
+      console.error("Error setting up map:", error);
     }
-  }, [geoJSONData, mapLoaded]);
+  }, [geoJSONData, mapLoaded, userLocation, getRoute]);
+
+  // Add effect to trigger geolocation
+  useEffect(() => {
+    if (mapLoaded && geolocateRef.current) {
+      let alreadyTriggered = false;
+
+      const timeoutId = setTimeout(() => {
+        if (!alreadyTriggered && !userLocation) {
+          console.log("Triggering geolocation on map load...");
+          geolocateRef.current?.trigger(); // ✅ Now it only runs once
+          alreadyTriggered = true;
+        }
+      }, 500);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [mapLoaded]); // ✅ No more double triggering
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+
+    const policeSource = map.getSource(
+      "police-source"
+    ) as maplibregl.GeoJSONSource;
+    if (policeSource) {
+      const policeData: FeatureCollection<Geometry, GeoJsonProperties> = {
+        type: "FeatureCollection",
+        features: policeStations.map((station) => ({
+          type: "Feature",
+          geometry: {
+            type: "Point",
+            coordinates: [station.lon, station.lat],
+          },
+          properties: {
+            id: station.id,
+            name: station.name,
+            phone: station.phone,
+          },
+        })),
+      };
+
+      policeSource.setData(policeData);
+    }
+  }, [policeStations, mapLoaded]);
+
+  // Add route layer to the map
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !routeData || !mapLoaded) return;
+
+    // Use the new utility function
+    const initialized = addOrUpdateRouteLayer(map, routeData);
+
+    if (initialized) {
+      routeInitialized.current = true;
+    }
+
+    // Set up a listener for style loading to re-add the route if needed
+    const handleStyleData = () => {
+      if (routeInitialized.current && !map.getSource("route")) {
+        addOrUpdateRouteLayer(map, routeData);
+      }
+
+      // Re-apply 3D mode if it's enabled
+      if (is3DMode) {
+        // Clear existing timeout
+        if (styleDataTimeoutRef.current) {
+          clearTimeout(styleDataTimeoutRef.current);
+        }
+        // Set new timeout
+        styleDataTimeoutRef.current = setTimeout(() => {
+          handle3DBuildings(map, true);
+        }, 100);
+      }
+    };
+
+    map.on("styledata", handleStyleData);
+
+    return () => {
+      if (styleDataTimeoutRef.current) {
+        clearTimeout(styleDataTimeoutRef.current);
+      }
+      map.off("styledata", handleStyleData);
+    };
+  }, [routeData, mapLoaded, is3DMode]);
+
+  // Update the is3DMode effect to use the new handler
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+    handle3DBuildings(map, is3DMode, {
+      beforeLayerId: "shelter-heatmap", // Add 3D buildings before the shelter heatmap layer
+    });
+  }, [is3DMode, mapLoaded]);
+
+  // Add this effect to maintain 3D buildings when other style changes occur
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded || !is3DMode) return;
+
+    // Short timeout to ensure the style has finished updating
+    const timeoutId = setTimeout(() => {
+      handle3DBuildings(map, true, {
+        beforeLayerId: "shelter-heatmap", // Add 3D buildings before the shelter heatmap layer
+      });
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
+  }, [showPoliceStations, showRoads, mapLoaded, is3DMode]);
+
+  // Add this function inside MapPage component
+  const handleGetRoute = useCallback(
+    (lon: number, lat: number) => {
+      if (!userLocation) {
+        return; // Early return if no user location
+      }
+
+      const bounds = new LngLatBounds().extend(userLocation).extend([lon, lat]);
+
+      mapRef.current?.fitBounds(bounds, {
+        padding: { top: 300, bottom: 300, left: 300, right: 300 },
+        duration: 1500,
+      });
+
+      getRoute(userLocation[0], userLocation[1], lon, lat);
+
+      // Clear all selected points when getting directions
+      setSelectedPoint(null);
+      setSelectedPoliceStation(null);
+      setSelectedHospital(null);
+    },
+    [userLocation, getRoute]
+  );
+
+  // Add this effect to handle fetching police log based on user location
+  useEffect(() => {
+    const fetchPoliceLog = async (lat: number, lon: number) => {
+      if (locationProcessedForPoliceLog.current) return;
+
+      try {
+        setPoliceLogLoading(true);
+
+        // Get district and municipality from user coordinates
+        const { district, municipality } = await reverseGeocode(lat, lon);
+
+        console.log("Fetching police log for:", district, municipality);
+
+        // Use the main function instead of the proxy-specific one
+        const messages = await fetchPoliceLogMessages(district, municipality);
+
+        if (messages && messages.length > 0) {
+          console.log(
+            `Successfully fetched ${messages.length} police log messages`
+          );
+          setPoliceMessages(messages);
+          setPoliceLogError(null);
+          // Show the log only if we have messages and no errors
+          setShowPoliceLog(false); // Start with closed log, user can open with button
+        } else {
+          console.log("No police log messages found for this location");
+        }
+
+        // Mark as processed to avoid duplicate requests
+        locationProcessedForPoliceLog.current = true;
+      } catch (error) {
+        console.error("Error fetching police log:", error);
+        setPoliceLogError("Kunne ikke laste politimeldinger.");
+        // Still mark as processed to prevent repeated failing requests
+        locationProcessedForPoliceLog.current = true;
+      } finally {
+        setPoliceLogLoading(false);
+      }
+    };
+
+    // Trigger only when we have user location
+    if (userLocation && !locationProcessedForPoliceLog.current) {
+      fetchPoliceLog(userLocation[1], userLocation[0]);
+    }
+  }, [userLocation]);
+
+  // Error handling for data loading
+  if (error) {
+    return (
+      <div className="map-error">
+        <h2>Error loading map data</h2>
+        <p>{error.message}</p>
+        <button onClick={() => window.location.reload()}>Retry</button>
+      </div>
+    );
+  }
 
   return (
-    <div style={{
-      width: '100vw',
-      height: '100vh',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center'
-    }}>
-      <Map
-        ref={(ref) => {
-          mapRef.current = ref?.getMap() ?? null;
-        }}
-        initialViewState={{
-          longitude: 10.7522, // Adjusted to center of Norway
-          latitude: 59.9139,
-          zoom: 5
-        }}
-        style={{ width: '100%', height: '100%' }}
-        mapStyle={{
-          version: 8,
-          sources: {
-            'openstreetmap': {
-              type: 'raster',
-              tiles: ['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'],
-              tileSize: 256,
-              attribution: '&copy; openstreetmap'
-            },
-            'roads-wms': {
-              type: 'raster',
-              tiles: [
-                'https://wms.geonorge.no/skwms1/wms.vegnett2?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&FORMAT=image/png&TRANSPARENT=true&LAYERS=Vegnett2&WIDTH=256&HEIGHT=256&CRS=EPSG:3857&STYLES=&BBOX={bbox-epsg-3857}'
-              ],
-              tileSize: 256,
-              attribution: '&copy; Geonorge - Norwegian Road Network'
-            },
-            'dsb-wms': {
-              type: 'raster',
-              tiles: [
-                'https://ogc.dsb.no/wms.ashx?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&FORMAT=image/png&TRANSPARENT=true&LAYERS=layer_340&WIDTH=256&HEIGHT=256&CRS=EPSG:3857&STYLES=&BBOX={bbox-epsg-3857}'
-              ],
-              tileSize: 256,
-              attribution: '&copy; Norwegian Directorate for Civil Protection (DSB)'
-            },
-            'geojson-source': {
-              type: 'geojson',
-              data: geoJSONData || { type: 'FeatureCollection', features: [] }
-            }
-          },
-          layers: [
-            {
-              id: 'openstreetmap-layer',
-              type: 'raster',
-              source: 'openstreetmap',
-              minzoom: 0,
-              maxzoom: 20
-            },
-            {
-              id: 'roads-layer',
-              type: 'raster',
-              source: 'roads-wms',
-              paint: {
-                'raster-opacity': 1
-              }
-            },
-            {
-              id: 'dsb-layer',
-              type: 'raster',
-              source: 'dsb-wms',
-              paint: {
-                'raster-opacity': 0 // blir bare brukt for å sjekke om punkter samsvaret mellom datasettene, sett til 1 for å se tilfluktsrom
-              }
-            },
-            {
-              id: 'geojson-layer-heat',
-              type: 'circle',
-              source: 'geojson-source',
-              paint: {
-                'circle-radius': [
-                  'interpolate',
-                  ['exponential', 1.75],
-                  ['zoom'],
-                  5, 20,
-                  10, 40,
-                  15, 60
-                ],
-                'circle-color': '#FF0000',
-                'circle-opacity': 0.15,
-                'circle-blur': 1
-              }
-            },
-            {
-              id: 'geojson-layer-glow',
-              type: 'circle',
-              source: 'geojson-source',
-              paint: {
-                'circle-radius': [
-                  'interpolate',
-                  ['exponential', 1.75],
-                  ['zoom'],
-                  5, 15,
-                  10, 30,
-                  15, 45
-                ],
-                'circle-color': '#FF4444',
-                'circle-opacity': 0.3,
-                'circle-blur': 0.8
-              }
-            },
-            {
-              id: 'geojson-layer',
-              type: 'circle',
-              source: 'geojson-source',
-              paint: {
-                'circle-radius': [
-                  'interpolate',
-                  ['exponential', 1.75],
-                  ['zoom'],
-                  5, 6,
-                  10, 8 ,
-                  15, 8
-                ],
-                'circle-color': '#FF0000',
-                'circle-stroke-width': 2,
-                'circle-stroke-color': '#FFFFFF',
-                'circle-opacity': 1
-              }
-            }
-          ]
-        }}
-        onLoad={() => {
-          console.log("Map loaded");
-          setMapLoaded(true);
-        }}
-        onError={(e) => {
-          console.error("Map error:", e);
-        }}
-      >
-        {selectedPoint && (
-          <Popup
-            longitude={selectedPoint.longitude}
-            latitude={selectedPoint.latitude}
-            anchor="bottom"
-            onClose={() => setSelectedPoint(null)}
-          >
-            <div style={{ padding: '10px' }}>
-              <h3>Tilfluktsrom informasjon</h3>
-              <p><strong>Addresse:</strong> {selectedPoint.address}</p>
-              <p><strong>Kapasitet:</strong> {selectedPoint.capacity} plasser</p>
-            </div>
-          </Popup>
-        )}
-        <FullscreenControl />
-        <GeolocateControl />
-        <NavigationControl />
-        <ScaleControl />
-      </Map>
+    <div
+      style={{
+        width: "100vw",
+        height: "100vh",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+      }}
+    >
+      {isLoading ? (
+        <div className="map-loading">Loading map data...</div>
+      ) : (
+        <Map
+          ref={(ref) => {
+            mapRef.current = ref?.getMap() ?? null;
+          }}
+          initialViewState={{
+            longitude: 8.5,
+            latitude: 61.5,
+            zoom: 5,
+            pitch: is3DMode ? 45 : 0,
+            bearing: 0,
+          }}
+          style={{ width: "100%", height: "100%" }}
+          mapStyle={
+            createMapStyle({
+              geoJSONData,
+              policeStations,
+              hospitals,
+              showPoliceStations,
+              showHospitals,
+              showRoads,
+            }) as maplibregl.StyleSpecification
+          }
+          onLoad={() => {
+            if (mapLoadedRef.current) return;
+            console.log("Map loaded");
+            setMapLoaded(true);
+            mapLoadedRef.current = true;
+          }}
+          onError={(e) => {
+            console.error("Map error:", e);
+          }}
+        >
+          {selectedPoint && (
+            <ShelterPopup
+              shelter={selectedPoint}
+              onClose={() => setSelectedPoint(null)}
+              distanceToShelter={distanceToShelter}
+              walkTime={walkTime}
+            />
+          )}
+
+          {selectedPoliceStation && (
+            <PoliceStationPopup
+              policeStation={selectedPoliceStation}
+              onClose={() => setSelectedPoliceStation(null)}
+              userLocation={userLocation ?? undefined}
+              onGetRoute={handleGetRoute}
+            />
+          )}
+
+          {selectedHospital && (
+            <HospitalPopup
+              hospital={selectedHospital}
+              onClose={() => setSelectedHospital(null)}
+              userLocation={userLocation ?? undefined}
+              onGetRoute={handleGetRoute}
+            />
+          )}
+
+          <FullscreenControl />
+          <GeolocateControl
+            ref={geolocateRef as any}
+            positionOptions={{ enableHighAccuracy: false }}
+            trackUserLocation={true}
+            showUserLocation={true}
+          />
+          <NavigationControl />
+          <ScaleControl />
+        </Map>
+      )}
+
+      <DistanceInfoCard distanceToShelter={distanceToShelter} />
+
+      <MapLayerToggle
+        showControls={showControls}
+        toggleControls={() => setShowControls(!showControls)}
+      />
+
+      <MapControls
+        showControls={showControls}
+        showPoliceStations={showPoliceStations}
+        setShowPoliceStations={setShowPoliceStations}
+        is3DMode={is3DMode}
+        setIs3DMode={setIs3DMode}
+        showRoads={showRoads}
+        setShowRoads={setShowRoads}
+        showHospitals={showHospitals}
+        setShowHospitals={setShowHospitals}
+      />
+
+      {/* Show reopen button only when police log is closed and we have messages */}
+      {!showPoliceLog && policeMessages.length > 0 && (
+        <PoliceLogButton
+          onClick={togglePoliceLog}
+          messageCount={policeMessages.length}
+        />
+      )}
+
+      {showPoliceLog && (
+        <PoliceLogCard
+          messages={policeMessages}
+          isLoading={policeLogLoading}
+          error={policeLogError}
+          onClose={() => setShowPoliceLog(false)}
+        />
+      )}
     </div>
   );
 }
