@@ -117,7 +117,9 @@ Vegnett aktivert
 ![ea1cbc6b3a868a7a66ae1334774e37f4](https://github.com/user-attachments/assets/1a78091a-8f69-40c2-b529-1ac3d1457d71)
 Varmekart
 ![976811359ed52c7f3e3e7c0a17df26d7](https://github.com/user-attachments/assets/5b75e024-d3b9-4637-b049-e81ea1823d41)
+Politiloggen se https://api.politiet.no/politiloggen/index.html 
 
+![image](https://github.com/user-attachments/assets/6f9195e9-3d24-403f-ba55-d0d2c40cb1e1)
 
 
 
