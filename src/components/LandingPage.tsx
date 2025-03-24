@@ -104,12 +104,13 @@ const LandingPage: React.FC = () => {
       <Box
         sx={{
           position: "relative",
-          height: "100vh",
+          height: { xs: "auto", md: "100vh" }, // Adjust height for mobile
+          minHeight: { xs: "90vh", md: "100vh" }, // Ensure minimum height
           width: "100%",
           color: "white",
-          pt: 12,
-          pb: 10,
-          mb: 12,
+          pt: { xs: 8, md: 12 }, // Smaller padding on mobile
+          pb: { xs: 8, md: 10 },
+          mb: { xs: 6, md: 12 }, // Reduced margin on mobile
           "&::before": {
             content: '""',
             position: "absolute",
@@ -137,19 +138,20 @@ const LandingPage: React.FC = () => {
       >
         <Container maxWidth="lg" sx={{ position: "relative" }}>
           <FadeInSection>
-            <Box sx={{ my: 4 }}>
+            <Box sx={{ my: { xs: 2, md: 4 } }}> {/* Adjust margin for mobile */}
               <Box
                 sx={{
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: 2,
-                  mb: 4,
+                  gap: { xs: 1, md: 2 }, // Smaller gap on mobile
+                  mb: { xs: 2, md: 4 }, // Adjust bottom margin
+                  flexWrap: { xs: "wrap", sm: "nowrap" }, // Allow wrapping on very small screens
                 }}
               >
                 <Box
                   sx={{
-                    fontSize: { xs: "2.5rem", md: "4rem" },
+                    fontSize: { xs: "2rem", sm: "2.5rem", md: "4rem" },
                     color: "#ffc400",
                   }}
                 >
@@ -161,9 +163,10 @@ const LandingPage: React.FC = () => {
                   align="center"
                   sx={{
                     color: "white",
-                    fontSize: { xs: "2.5rem", md: "4rem" },
+                    fontSize: { xs: "1.8rem", sm: "2.5rem", md: "4rem" },
                     textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
                     fontWeight: "bold",
+                    lineHeight: { xs: 1.2, md: 1.5 }, // Better line height for mobile
                   }}
                 >
                   <Box component="span" sx={{ color: "#ffc400" }}>
@@ -178,9 +181,10 @@ const LandingPage: React.FC = () => {
                 paragraph
                 sx={{
                   color: "rgba(255,255,255,0.9)",
-                  fontSize: { xs: "1.2rem", md: "1.5rem" },
-                  mb: 4,
-                  mt: 5,
+                  fontSize: { xs: "1rem", sm: "1.2rem", md: "1.5rem" },
+                  mb: { xs: 3, md: 4 },
+                  mt: { xs: 3, md: 5 },
+                  px: { xs: 1, md: 0 }, // Add some horizontal padding on mobile
                 }}
               >
                 Din livslinje i krisetider. Finn nærmeste tilfluktsrom raskt og
@@ -188,12 +192,12 @@ const LandingPage: React.FC = () => {
               </Typography>
               <Box
                 sx={{
-                  mt: 8,
+                  mt: { xs: 4, md: 8 },
                   display: "flex",
                   flexDirection: { xs: "column", sm: "row" },
                   justifyContent: "center",
                   alignItems: "center",
-                  gap: 2,
+                  gap: { xs: 1.5, md: 2 }, // Smaller gap on mobile
                 }}
               >
                 <PulseButton
@@ -204,9 +208,10 @@ const LandingPage: React.FC = () => {
                   onClick={handleFindShelter}
                   disabled={loading}
                   sx={{
-                    py: 2,
-                    px: 6,
-                    fontSize: "1.2rem",
+                    py: { xs: 1.5, md: 2 }, // Smaller padding on mobile
+                    px: { xs: 4, md: 6 },
+                    fontSize: { xs: "1rem", md: "1.2rem" },
+                    width: { xs: "100%", sm: "auto" }, // Full width on mobile
                     backgroundColor: "#ffc400",
                     color: "#000",
                     "&:hover": {
@@ -220,11 +225,13 @@ const LandingPage: React.FC = () => {
                   variant="outlined"
                   size="large"
                   sx={{
-                    py: 2,
-                    px: 6,
-                    fontSize: "1.2rem",
+                    py: { xs: 1.5, md: 2 },
+                    px: { xs: 4, md: 6 },
+                    fontSize: { xs: "1rem", md: "1.2rem" },
+                    width: { xs: "100%", sm: "auto" }, // Full width on mobile
                     color: "white",
                     borderColor: "white",
+                    mt: { xs: 1, sm: 0 }, // Add top margin on mobile
                     "&:hover": {
                       borderColor: "#ffc400",
                       color: "#ffc400",
@@ -241,14 +248,15 @@ const LandingPage: React.FC = () => {
         </Container>
       </Box>
 
-      <Container maxWidth="lg">
+      <Container maxWidth="lg" sx={{ px: { xs: 2, md: 3 } }}> {/* Adjust container padding */}
         <FadeInSection>
-          <Box ref={firstSectionRef} sx={{ my: 8 }}>
+          <Box ref={firstSectionRef} sx={{ my: { xs: 5, md: 8 } }}> {/* Adjust vertical spacing */}
             <Typography
               variant="h2"
               align="center"
               color="primary"
               gutterBottom
+              sx={{ fontSize: { xs: "1.8rem", sm: "2.2rem", md: "3rem" } }} // Responsive font size
             >
               {" "}
               <Box component="span">
@@ -259,7 +267,7 @@ const LandingPage: React.FC = () => {
                 Tilfluktsromfinner?
               </Box>
             </Typography>
-            <Grid container spacing={4} sx={{ mt: 2 }}>
+            <Grid container spacing={{ xs: 2, md: 4 }} sx={{ mt: { xs: 1, md: 2 } }}> {/* Responsive grid spacing */}
               <Grid item xs={12} md={4}>
                 <Card>
                   <CardContent>
@@ -307,16 +315,17 @@ const LandingPage: React.FC = () => {
         </FadeInSection>
 
         <FadeInSection>
-          <Box sx={{ my: 8 }}>
+          <Box sx={{ my: { xs: 5, md: 8 } }}> {/* Adjust vertical spacing */}
             <Typography
               variant="h2"
               align="center"
               color="primary"
               gutterBottom
+              sx={{ fontSize: { xs: "1.8rem", sm: "2.2rem", md: "3rem" } }}
             >
               Slik fungerer det
             </Typography>
-            <Paper elevation={2} sx={{ p: 4, mt: 4 }}>
+            <Paper elevation={2} sx={{ p: { xs: 2, md: 4 }, mt: { xs: 2, md: 4 } }}> {/* Adjust padding */}
               <List>
                 <ListItem>
                   <ListItemIcon>
@@ -396,12 +405,13 @@ const LandingPage: React.FC = () => {
         </FadeInSection>
 
         <FadeInSection>
-          <Box sx={{ my: 8 }}>
+          <Box sx={{ my: { xs: 5, md: 8 } }}>
             <Typography
               variant="h2"
               align="center"
               color="primary"
               gutterBottom
+              sx={{ fontSize: { xs: "1.8rem", sm: "2.2rem", md: "3rem" } }}
             >
               Velg din sikkerhetsplan
             </Typography>
@@ -410,10 +420,11 @@ const LandingPage: React.FC = () => {
               align="center"
               color="text.secondary"
               paragraph
+              sx={{ fontSize: { xs: "1.1rem", md: "1.5rem" } }}
             >
               Velg den planen som passer best for dine behov
             </Typography>
-            <Grid container spacing={4} justifyContent="center" sx={{ mt: 2 }}>
+            <Grid container spacing={{ xs: 2, md: 4 }} justifyContent="center" sx={{ mt: { xs: 1, md: 2 } }}>
               <Grid item xs={12} sm={6} md={4}>
                 <Card
                   sx={{
@@ -571,7 +582,7 @@ const LandingPage: React.FC = () => {
         component="footer"
         sx={{
           bgcolor: "background.paper",
-          py: 6,
+          py: { xs: 4, md: 6 },
           position: "relative",
         }}
       >
@@ -579,8 +590,10 @@ const LandingPage: React.FC = () => {
           maxWidth="lg"
           sx={{
             display: "flex",
+            flexDirection: { xs: "column", md: "row" }, // Stack on mobile
             alignItems: "center",
-            justifyContent: "space-between",
+            justifyContent: { xs: "center", md: "space-between" },
+            gap: { xs: 3, md: 0 }, // Add gap in column layout
           }}
         >
           {/* UiA Logo */}
@@ -589,21 +602,28 @@ const LandingPage: React.FC = () => {
             src="/assets/uia.svg"
             alt="UiA Logo"
             sx={{
-              height: 50,
+              height: { xs: 40, md: 50 },
               filter: "brightness(0.8)",
               opacity: 0.9,
+              order: { xs: 1, md: 0 }, // Adjust order on mobile
             }}
           />
 
           {/* Center Content */}
-          <Box sx={{ textAlign: "center", mr: 7 }}>
-            <Typography variant="h6" gutterBottom>
+          <Box sx={{ 
+            textAlign: "center", 
+            mr: { xs: 0, md: 7 },
+            order: { xs: 0, md: 1 }, // Show at top on mobile
+            mb: { xs: 2, md: 0 },
+          }}>
+            <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.1rem", md: "1.25rem" } }}>
               NukeTown Tilfluktsromfinner
             </Typography>
             <Typography
               variant="subtitle1"
               color="text.secondary"
               component="p"
+              sx={{ fontSize: { xs: "0.9rem", md: "1rem" } }}
             >
               Hjelper deg å holde deg trygg i krisetider.
             </Typography>
@@ -615,17 +635,16 @@ const LandingPage: React.FC = () => {
           </Box>
 
           {/* GitHub Link */}
-          <Box>
+          <Box sx={{ order: { xs: 2, md: 2 } }}>
             <Button
               href="https://github.com/simonportillo/nuketown"
               target="_blank"
               rel="noopener noreferrer"
               startIcon={<GitHubIcon />}
               sx={{
-                mr: 8,
-                fontSize: "1.2rem",
+                mr: { xs: 0, md: 8 },
+                fontSize: { xs: "1rem", md: "1.2rem" },
                 color: "text.secondary",
-
                 "&:hover": {
                   color: "primary.main",
                 },
